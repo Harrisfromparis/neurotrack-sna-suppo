@@ -1,17 +1,21 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useKV } from '@github/spark/hooks'
 import { Student, BehaviorLog, ActivityLog, Message, CrisisProtocol } from '@/lib/types'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Users, MessageCircle, Activity, Shield, TrendingUp } from '@phosphor-icons/react'
+import { Plus, Users, MessageCircle, Activity, Shield, TrendingUp, BarChart } from '@phosphor-icons/react'
 import { StudentDashboard } from '@/components/student/StudentDashboard'
 import { BehaviorTracking } from '@/components/behavior/BehaviorTracking'
 import { CommunicationHub } from '@/components/communication/CommunicationHub'
 import { CrisisManagement } from '@/components/crisis/CrisisManagement'
+import { ActivityLogging } from '@/components/activity/ActivityLogging'
+import { AnalyticsReports } from '@/components/analytics/AnalyticsReports'
 import { AddStudentDialog } from '@/components/student/AddStudentDialog'
 import { Toaster } from '@/components/ui/sonner'
+import { loggingService } from '@/lib/logging'
+import { usePageTracking } from '@/hooks/useLogging'
 
 function App() {
   const [students] = useKV<Student[]>('students', [])
@@ -20,6 +24,26 @@ function App() {
   const [messages] = useKV<Message[]>('messages', [])
   const [selectedStudentId, setSelectedStudentId] = useState<string>('')
   const [showAddStudent, setShowAddStudent] = useState(false)
+  const { trackNavigation } = usePageTracking('NeuroSupport-Dashboard')
+
+  // Initialize logging service
+  useEffect(() => {
+    const initializeLogging = async () => {
+      try {
+        const user = await spark.user()
+        await loggingService.initializeSession(user?.login || 'anonymous')
+      } catch (error) {
+        console.error('Failed to initialize logging:', error)
+      }
+    }
+
+    initializeLogging()
+
+    // Cleanup on unmount
+    return () => {
+      loggingService.endSession()
+    }
+  }, [])
 
   const selectedStudent = students.find(s => s.id === selectedStudentId)
   const unreadMessages = messages.filter(m => !m.read).length
@@ -72,7 +96,7 @@ function App() {
           </div>
         ) : (
           <Tabs defaultValue="dashboard" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="dashboard" className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
                 Dashboard
@@ -93,6 +117,10 @@ function App() {
               <TabsTrigger value="activities" className="flex items-center gap-2">
                 <Activity className="h-4 w-4" />
                 Activities
+              </TabsTrigger>
+              <TabsTrigger value="analytics" className="flex items-center gap-2">
+                <BarChart className="h-4 w-4" />
+                Analytics
               </TabsTrigger>
               <TabsTrigger value="crisis" className="flex items-center gap-2">
                 <Shield className="h-4 w-4" />
@@ -127,24 +155,19 @@ function App() {
             </TabsContent>
 
             <TabsContent value="activities">
-              <div className="grid gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Activity className="h-5 w-5" />
-                      Daily Activity Logging
-                    </CardTitle>
-                    <CardDescription>
-                      Track meals, medications, therapy sessions, and other daily activities
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-center py-8 text-muted-foreground">
-                      Activity logging features coming soon
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+              <ActivityLogging 
+                students={students}
+                selectedStudentId={selectedStudentId}
+                onSelectStudent={setSelectedStudentId}
+              />
+            </TabsContent>
+
+            <TabsContent value="analytics">
+              <AnalyticsReports 
+                students={students}
+                selectedStudentId={selectedStudentId}
+                onSelectStudent={setSelectedStudentId}
+              />
             </TabsContent>
 
             <TabsContent value="crisis">

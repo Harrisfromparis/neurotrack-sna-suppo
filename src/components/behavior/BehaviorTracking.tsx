@@ -9,8 +9,11 @@ import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Plus, TrendingUp, AlertTriangle, CheckCircle, Clock } from '@phosphor-icons/react'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Plus, TrendingUp, AlertTriangle, CheckCircle, Clock, MapPin, User, Tag } from '@phosphor-icons/react'
 import { toast } from 'sonner'
+import { useLogging, useFormTracking } from '@/hooks/useLogging'
+import { getCurrentSessionId } from '@/lib/logging'
 
 interface BehaviorTrackingProps {
   students: Student[]
@@ -21,6 +24,9 @@ interface BehaviorTrackingProps {
 export function BehaviorTracking({ students, selectedStudentId, onSelectStudent }: BehaviorTrackingProps) {
   const [behaviorLogs, setBehaviorLogs] = useKV<BehaviorLog[]>('behavior-logs', [])
   const [showAddLog, setShowAddLog] = useState(false)
+  const { logAction, logError } = useLogging()
+  const { trackFormStart, trackFieldInteraction, trackFormSubmit, trackValidationError } = useFormTracking('behavior-log-form')
+  
   const [newLog, setNewLog] = useState({
     studentId: '',
     type: 'neutral' as 'positive' | 'challenging' | 'neutral',
@@ -29,8 +35,31 @@ export function BehaviorTracking({ students, selectedStudentId, onSelectStudent 
     behavior: '',
     intervention: '',
     outcome: '',
-    notes: ''
+    notes: '',
+    // Enhanced fields
+    location: '',
+    antecedent: '',
+    consequence: '',
+    interventionEffectiveness: 3 as 1 | 2 | 3 | 4 | 5,
+    followUpRequired: false,
+    environmentalFactors: [] as string[],
+    tags: [] as string[],
+    duration: ''
   })
+
+  const selectedStudent = students.find(s => s.id === selectedStudentId)
+  const studentLogs = behaviorLogs.filter(log => log.studentId === selectedStudentId)
+
+  // Common tags for quick selection
+  const commonTags = [
+    'transition', 'academic', 'social', 'sensory', 'communication', 
+    'peer-interaction', 'adult-interaction', 'self-regulation', 'attention'
+  ]
+
+  const environmentalOptions = [
+    'loud-noise', 'crowded-space', 'new-environment', 'disrupted-routine',
+    'peer-conflict', 'academic-demand', 'sensory-overload', 'fatigue'
+  ]
 
   const selectedStudent = students.find(s => s.id === selectedStudentId)
   const studentLogs = behaviorLogs.filter(log => log.studentId === selectedStudentId)
@@ -43,32 +72,89 @@ export function BehaviorTracking({ students, selectedStudentId, onSelectStudent 
     }))
   }, [selectedStudentId])
 
-  const handleAddLog = () => {
+  // Log component usage
+  useEffect(() => {
+    logAction('view_behavior_tracking', selectedStudentId || 'no_student_selected')
+  }, [selectedStudentId, logAction])
+
+  const handleAddLog = async () => {
+    trackFormStart()
+    
+    // Validation
     if (!newLog.studentId || !newLog.behavior || !newLog.intervention) {
+      const missingFields = []
+      if (!newLog.studentId) missingFields.push('student')
+      if (!newLog.behavior) missingFields.push('behavior')
+      if (!newLog.intervention) missingFields.push('intervention')
+      
+      trackValidationError('required-fields', `Missing: ${missingFields.join(', ')}`)
       toast.error('Please fill in required fields')
       return
     }
 
-    const log: BehaviorLog = {
-      id: Date.now().toString(),
-      ...newLog,
-      timestamp: new Date().toISOString()
-    }
+    try {
+      const sessionId = getCurrentSessionId() || 'no-session'
+      const currentUser = await spark.user()
+      
+      const log: BehaviorLog = {
+        id: `behavior_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+        ...newLog,
+        timestamp: new Date().toISOString(),
+        // Enhanced tracking fields
+        sessionId,
+        recordedBy: currentUser?.login || 'unknown-user',
+        duration: newLog.duration ? parseInt(newLog.duration) : undefined,
+        followUpCompleted: false,
+        attachments: [],
+        status: 'submitted'
+      }
 
-    setBehaviorLogs(current => [...current, log])
-    toast.success('Behavior log added successfully')
-    
-    setNewLog({
-      studentId: selectedStudentId || '',
-      type: 'neutral',
-      severity: 3,
-      trigger: '',
-      behavior: '',
-      intervention: '',
-      outcome: '',
-      notes: ''
-    })
-    setShowAddLog(false)
+      setBehaviorLogs(current => [...current, log])
+      
+      logAction('behavior_log_created', selectedStudentId, {
+        behaviorType: log.type,
+        severity: log.severity,
+        location: log.location,
+        hasFollowUp: log.followUpRequired,
+        tagsCount: log.tags.length,
+        environmentalFactorsCount: log.environmentalFactors?.length || 0
+      })
+      
+      trackFormSubmit({
+        studentId: log.studentId,
+        type: log.type,
+        severity: log.severity,
+        hasLocation: !!log.location,
+        hasTags: log.tags.length > 0
+      }, true)
+      
+      toast.success('Behavior log added successfully')
+      
+      // Reset form
+      setNewLog({
+        studentId: selectedStudentId || '',
+        type: 'neutral',
+        severity: 3,
+        trigger: '',
+        behavior: '',
+        intervention: '',
+        outcome: '',
+        notes: '',
+        location: '',
+        antecedent: '',
+        consequence: '',
+        interventionEffectiveness: 3,
+        followUpRequired: false,
+        environmentalFactors: [],
+        tags: [],
+        duration: ''
+      })
+      setShowAddLog(false)
+    } catch (error) {
+      logError('behavior_log_creation', error?.toString() || 'Unknown error', selectedStudentId)
+      trackFormSubmit({}, false)
+      toast.error('Failed to add behavior log')
+    }
   }
 
   const getBehaviorTypeColor = (type: string) => {
@@ -149,99 +235,286 @@ export function BehaviorTracking({ students, selectedStudentId, onSelectStudent 
                 Log Behavior
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Add Behavior Log</DialogTitle>
                 <DialogDescription>
-                  Record behavioral observation for {selectedStudent.name}
+                  Record comprehensive behavioral observation for {selectedStudent.name}
                 </DialogDescription>
               </DialogHeader>
               
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Behavior Type</Label>
-                    <Select onValueChange={(value: any) => setNewLog(prev => ({ ...prev, type: value }))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="positive">Positive</SelectItem>
-                        <SelectItem value="neutral">Neutral</SelectItem>
-                        <SelectItem value="challenging">Challenging</SelectItem>
-                      </SelectContent>
-                    </Select>
+              <div className="space-y-6">
+                {/* Basic Information */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Basic Information</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label>Behavior Type *</Label>
+                      <Select 
+                        onValueChange={(value: any) => {
+                          setNewLog(prev => ({ ...prev, type: value }))
+                          trackFieldInteraction('type')
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="positive">Positive</SelectItem>
+                          <SelectItem value="neutral">Neutral</SelectItem>
+                          <SelectItem value="challenging">Challenging</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label>Severity (1-5) *</Label>
+                      <Select 
+                        onValueChange={(value) => {
+                          setNewLog(prev => ({ ...prev, severity: parseInt(value) as any }))
+                          trackFieldInteraction('severity')
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select severity" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">1 - Very Low</SelectItem>
+                          <SelectItem value="2">2 - Low</SelectItem>
+                          <SelectItem value="3">3 - Moderate</SelectItem>
+                          <SelectItem value="4">4 - High</SelectItem>
+                          <SelectItem value="5">5 - Very High</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Duration (minutes)</Label>
+                      <Input
+                        type="number"
+                        value={newLog.duration}
+                        onChange={(e) => {
+                          setNewLog(prev => ({ ...prev, duration: e.target.value }))
+                          trackFieldInteraction('duration')
+                        }}
+                        placeholder="0"
+                        min="0"
+                      />
+                    </div>
                   </div>
-                  
-                  <div className="space-y-2">
-                    <Label>Severity (1-5)</Label>
-                    <Select onValueChange={(value) => setNewLog(prev => ({ ...prev, severity: parseInt(value) as any }))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select severity" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1">1 - Very Low</SelectItem>
-                        <SelectItem value="2">2 - Low</SelectItem>
-                        <SelectItem value="3">3 - Moderate</SelectItem>
-                        <SelectItem value="4">4 - High</SelectItem>
-                        <SelectItem value="5">5 - Very High</SelectItem>
-                      </SelectContent>
-                    </Select>
+                </div>
+
+                {/* Context Information */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                    <MapPin className="h-5 w-5" />
+                    Context Information
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Location</Label>
+                      <Input
+                        value={newLog.location}
+                        onChange={(e) => {
+                          setNewLog(prev => ({ ...prev, location: e.target.value }))
+                          trackFieldInteraction('location')
+                        }}
+                        placeholder="Classroom, hallway, cafeteria, etc."
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Environmental Factors</Label>
+                      <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+                        {environmentalOptions.map((factor) => (
+                          <div key={factor} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={factor}
+                              checked={newLog.environmentalFactors.includes(factor)}
+                              onCheckedChange={(checked) => {
+                                setNewLog(prev => ({
+                                  ...prev,
+                                  environmentalFactors: checked
+                                    ? [...prev.environmentalFactors, factor]
+                                    : prev.environmentalFactors.filter(f => f !== factor)
+                                }))
+                                trackFieldInteraction('environmental-factors')
+                              }}
+                            />
+                            <Label htmlFor={factor} className="text-sm">
+                              {factor.replace('-', ' ')}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Trigger/Antecedent</Label>
-                  <Input
-                    value={newLog.trigger}
-                    onChange={(e) => setNewLog(prev => ({ ...prev, trigger: e.target.value }))}
-                    placeholder="What happened before the behavior?"
-                  />
+                {/* ABC Analysis */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">ABC Analysis</h3>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Antecedent (What happened before?)</Label>
+                      <Textarea
+                        value={newLog.antecedent}
+                        onChange={(e) => {
+                          setNewLog(prev => ({ ...prev, antecedent: e.target.value }))
+                          trackFieldInteraction('antecedent')
+                        }}
+                        placeholder="Describe what happened immediately before the behavior"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Behavior Description *</Label>
+                      <Textarea
+                        value={newLog.behavior}
+                        onChange={(e) => {
+                          setNewLog(prev => ({ ...prev, behavior: e.target.value }))
+                          trackFieldInteraction('behavior')
+                        }}
+                        placeholder="Describe the observed behavior objectively"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Consequence (What happened after?)</Label>
+                      <Textarea
+                        value={newLog.consequence}
+                        onChange={(e) => {
+                          setNewLog(prev => ({ ...prev, consequence: e.target.value }))
+                          trackFieldInteraction('consequence')
+                        }}
+                        placeholder="Describe what happened immediately after the behavior"
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Behavior Description *</Label>
-                  <Textarea
-                    value={newLog.behavior}
-                    onChange={(e) => setNewLog(prev => ({ ...prev, behavior: e.target.value }))}
-                    placeholder="Describe the observed behavior"
-                    required
-                  />
+                {/* Intervention and Outcome */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Intervention & Outcome</h3>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Intervention Used *</Label>
+                      <Textarea
+                        value={newLog.intervention}
+                        onChange={(e) => {
+                          setNewLog(prev => ({ ...prev, intervention: e.target.value }))
+                          trackFieldInteraction('intervention')
+                        }}
+                        placeholder="What intervention or response was used?"
+                        required
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Intervention Effectiveness (1-5)</Label>
+                        <Select 
+                          onValueChange={(value) => {
+                            setNewLog(prev => ({ ...prev, interventionEffectiveness: parseInt(value) as any }))
+                            trackFieldInteraction('intervention-effectiveness')
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Rate effectiveness" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">1 - Not Effective</SelectItem>
+                            <SelectItem value="2">2 - Slightly Effective</SelectItem>
+                            <SelectItem value="3">3 - Moderately Effective</SelectItem>
+                            <SelectItem value="4">4 - Very Effective</SelectItem>
+                            <SelectItem value="5">5 - Extremely Effective</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Follow-up Required</Label>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="followUp"
+                            checked={newLog.followUpRequired}
+                            onCheckedChange={(checked) => {
+                              setNewLog(prev => ({ ...prev, followUpRequired: !!checked }))
+                              trackFieldInteraction('follow-up-required')
+                            }}
+                          />
+                          <Label htmlFor="followUp">This incident requires follow-up action</Label>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Outcome</Label>
+                      <Textarea
+                        value={newLog.outcome}
+                        onChange={(e) => {
+                          setNewLog(prev => ({ ...prev, outcome: e.target.value }))
+                          trackFieldInteraction('outcome')
+                        }}
+                        placeholder="What was the result of the intervention?"
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Intervention Used *</Label>
-                  <Textarea
-                    value={newLog.intervention}
-                    onChange={(e) => setNewLog(prev => ({ ...prev, intervention: e.target.value }))}
-                    placeholder="What intervention or response was used?"
-                    required
-                  />
+                {/* Tags and Notes */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                    <Tag className="h-5 w-5" />
+                    Additional Information
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Tags</Label>
+                      <div className="grid grid-cols-3 gap-2 max-h-32 overflow-y-auto">
+                        {commonTags.map((tag) => (
+                          <div key={tag} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={tag}
+                              checked={newLog.tags.includes(tag)}
+                              onCheckedChange={(checked) => {
+                                setNewLog(prev => ({
+                                  ...prev,
+                                  tags: checked
+                                    ? [...prev.tags, tag]
+                                    : prev.tags.filter(t => t !== tag)
+                                }))
+                                trackFieldInteraction('tags')
+                              }}
+                            />
+                            <Label htmlFor={tag} className="text-sm">
+                              {tag.replace('-', ' ')}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Additional Notes</Label>
+                      <Textarea
+                        value={newLog.notes}
+                        onChange={(e) => {
+                          setNewLog(prev => ({ ...prev, notes: e.target.value }))
+                          trackFieldInteraction('notes')
+                        }}
+                        placeholder="Any additional observations, context, or relevant information"
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Outcome</Label>
-                  <Textarea
-                    value={newLog.outcome}
-                    onChange={(e) => setNewLog(prev => ({ ...prev, outcome: e.target.value }))}
-                    placeholder="What was the result of the intervention?"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Additional Notes</Label>
-                  <Textarea
-                    value={newLog.notes}
-                    onChange={(e) => setNewLog(prev => ({ ...prev, notes: e.target.value }))}
-                    placeholder="Any additional observations or context"
-                  />
-                </div>
-
-                <div className="flex justify-end gap-2">
+                <div className="flex justify-end gap-2 pt-4 border-t">
                   <Button variant="outline" onClick={() => setShowAddLog(false)}>
                     Cancel
                   </Button>
-                  <Button onClick={handleAddLog}>Add Log</Button>
+                  <Button onClick={handleAddLog}>Add Behavior Log</Button>
                 </div>
               </div>
             </DialogContent>
@@ -312,10 +585,27 @@ export function BehaviorTracking({ students, selectedStudentId, onSelectStudent 
                         <Badge className={getSeverityColor(log.severity)}>
                           Severity {log.severity}
                         </Badge>
+                        {log.followUpRequired && (
+                          <Badge variant="outline" className="text-orange-600 border-orange-600">
+                            Follow-up Required
+                          </Badge>
+                        )}
+                        {log.location && (
+                          <Badge variant="secondary" className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {log.location}
+                          </Badge>
+                        )}
                       </div>
-                      <span className="text-sm text-muted-foreground">
-                        {new Date(log.timestamp).toLocaleString()}
-                      </span>
+                      <div className="text-right text-sm text-muted-foreground">
+                        <div>{new Date(log.timestamp).toLocaleString()}</div>
+                        {log.recordedBy && (
+                          <div className="flex items-center gap-1 mt-1">
+                            <User className="h-3 w-3" />
+                            {log.recordedBy}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
@@ -326,8 +616,69 @@ export function BehaviorTracking({ students, selectedStudentId, onSelectStudent 
                       <div>
                         <span className="font-medium">Intervention:</span>
                         <p className="text-muted-foreground mt-1">{log.intervention}</p>
+                        {log.interventionEffectiveness && (
+                          <div className="mt-1">
+                            <Badge variant="outline" className="text-xs">
+                              Effectiveness: {log.interventionEffectiveness}/5
+                            </Badge>
+                          </div>
+                        )}
                       </div>
                     </div>
+
+                    {/* Enhanced information sections */}
+                    {(log.antecedent || log.consequence || log.duration) && (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm pt-2 border-t">
+                        {log.antecedent && (
+                          <div>
+                            <span className="font-medium">Antecedent:</span>
+                            <p className="text-muted-foreground mt-1">{log.antecedent}</p>
+                          </div>
+                        )}
+                        {log.consequence && (
+                          <div>
+                            <span className="font-medium">Consequence:</span>
+                            <p className="text-muted-foreground mt-1">{log.consequence}</p>
+                          </div>
+                        )}
+                        {log.duration && (
+                          <div>
+                            <span className="font-medium">Duration:</span>
+                            <p className="text-muted-foreground mt-1">{log.duration} minutes</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Tags and Environmental Factors */}
+                    {(log.tags?.length > 0 || log.environmentalFactors?.length > 0) && (
+                      <div className="pt-2 border-t">
+                        {log.tags?.length > 0 && (
+                          <div className="mb-2">
+                            <span className="font-medium text-sm">Tags:</span>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {log.tags.map((tag, index) => (
+                                <Badge key={index} variant="outline" className="text-xs">
+                                  {tag.replace('-', ' ')}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {log.environmentalFactors?.length > 0 && (
+                          <div className="mb-2">
+                            <span className="font-medium text-sm">Environmental Factors:</span>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {log.environmentalFactors.map((factor, index) => (
+                                <Badge key={index} variant="secondary" className="text-xs">
+                                  {factor.replace('-', ' ')}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {(log.trigger || log.outcome || log.notes) && (
                       <div className="pt-2 border-t">
