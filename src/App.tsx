@@ -1,30 +1,68 @@
 import { useState, useEffect } from 'react'
 import { useKV } from '@github/spark/hooks'
-import { Student, BehaviorLog, ActivityLog, Message, CrisisProtocol } from '@/lib/types'
+import { Student, BehaviorLog, ActivityLog, Message, CrisisProtocol, DailySchedule } from '@/lib/types'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Users, MessageCircle, Activity, Shield, TrendingUp, BarChart } from '@phosphor-icons/react'
+import { Plus, Users, MessageCircle, Activity, Shield, TrendingUp, BarChart, Calendar } from '@phosphor-icons/react'
 import { StudentDashboard } from '@/components/student/StudentDashboard'
 import { BehaviorTracking } from '@/components/behavior/BehaviorTracking'
 import { CommunicationHub } from '@/components/communication/CommunicationHub'
 import { CrisisManagement } from '@/components/crisis/CrisisManagement'
 import { ActivityLogging } from '@/components/activity/ActivityLogging'
 import { AnalyticsReports } from '@/components/analytics/AnalyticsReports'
+import { ScheduleView } from '@/components/schedule/ScheduleView'
 import { AddStudentDialog } from '@/components/student/AddStudentDialog'
 import { Toaster } from '@/components/ui/sonner'
 import { loggingService } from '@/lib/logging'
 import { usePageTracking } from '@/hooks/useLogging'
 
 function App() {
-  const [students] = useKV<Student[]>('students', [])
+  const [students, setStudents] = useKV<Student[]>('students', [])
   const [behaviorLogs] = useKV<BehaviorLog[]>('behavior-logs', [])
   const [activityLogs] = useKV<ActivityLog[]>('activity-logs', [])
   const [messages] = useKV<Message[]>('messages', [])
   const [selectedStudentId, setSelectedStudentId] = useState<string>('')
   const [showAddStudent, setShowAddStudent] = useState(false)
   const { trackNavigation } = usePageTracking('NeuroSupport-Dashboard')
+
+  // Migrate existing students to include schedule if missing
+  useEffect(() => {
+    const migrateStudents = async () => {
+      const studentsNeedingMigration = students.filter(student => !student.schedule)
+      
+      if (studentsNeedingMigration.length > 0) {
+        try {
+          const user = await spark.user()
+          const migratedStudents = students.map(student => {
+            if (!student.schedule) {
+              const emptySchedule: DailySchedule = {
+                id: crypto.randomUUID(),
+                studentId: student.id,
+                effectiveDate: new Date().toISOString(),
+                blocks: [],
+                breaks: [],
+                lastUpdated: new Date().toISOString(),
+                updatedBy: user?.login || 'system',
+                isActive: true
+              }
+              return { ...student, schedule: emptySchedule }
+            }
+            return student
+          })
+          
+          await setStudents(migratedStudents)
+        } catch (error) {
+          console.error('Failed to migrate student schedules:', error)
+        }
+      }
+    }
+
+    if (students.length > 0) {
+      migrateStudents()
+    }
+  }, [students, setStudents])
 
   // Initialize logging service
   useEffect(() => {
@@ -96,10 +134,14 @@ function App() {
           </div>
         ) : (
           <Tabs defaultValue="dashboard" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-6">
+            <TabsList className="grid w-full grid-cols-7">
               <TabsTrigger value="dashboard" className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
                 Dashboard
+              </TabsTrigger>
+              <TabsTrigger value="schedule" className="flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Schedule
               </TabsTrigger>
               <TabsTrigger value="behavior" className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4" />
@@ -135,6 +177,14 @@ function App() {
                 onSelectStudent={setSelectedStudentId}
                 behaviorLogs={behaviorLogs}
                 activityLogs={activityLogs}
+              />
+            </TabsContent>
+
+            <TabsContent value="schedule">
+              <ScheduleView 
+                students={students}
+                selectedStudentId={selectedStudentId}
+                onSelectStudent={setSelectedStudentId}
               />
             </TabsContent>
 

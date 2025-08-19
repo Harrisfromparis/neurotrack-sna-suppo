@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useKV } from '@github/spark/hooks'
-import { Student } from '@/lib/types'
+import { Student, DailySchedule } from '@/lib/types'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -31,7 +31,7 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps) 
   const [supportNeeds, setSupportNeeds] = useState<string[]>([])
   const [newSupportNeed, setNewSupportNeed] = useState('')
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!formData.name || !formData.age || !formData.grade) {
@@ -39,40 +39,60 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps) 
       return
     }
 
-    const newStudent: Student = {
-      id: Date.now().toString(),
-      name: formData.name,
-      age: parseInt(formData.age),
-      grade: formData.grade,
-      supportNeeds,
-      careNotes: formData.careNotes,
-      emergencyContacts: formData.emergencyContactName ? [{
-        id: Date.now().toString(),
-        name: formData.emergencyContactName,
-        phone: formData.emergencyContactPhone,
-        relationship: formData.emergencyContactRelationship,
-        isPrimary: true
-      }] : [],
-      iepGoals: [],
-      createdAt: new Date().toISOString()
-    }
+    try {
+      const user = await spark.user()
+      
+      // Create empty schedule for new student
+      const newSchedule: DailySchedule = {
+        id: crypto.randomUUID(),
+        studentId: Date.now().toString(),
+        effectiveDate: new Date().toISOString(),
+        blocks: [],
+        breaks: [],
+        lastUpdated: new Date().toISOString(),
+        updatedBy: user?.login || 'unknown',
+        isActive: true
+      }
 
-    setStudents(current => [...current, newStudent])
-    toast.success(`${newStudent.name} has been added successfully`)
-    
-    // Reset form
-    setFormData({
-      name: '',
-      age: '',
-      grade: '',
-      careNotes: '',
-      emergencyContactName: '',
-      emergencyContactPhone: '',
-      emergencyContactRelationship: ''
-    })
-    setSupportNeeds([])
-    setNewSupportNeed('')
-    onOpenChange(false)
+      const newStudent: Student = {
+        id: Date.now().toString(),
+        name: formData.name,
+        age: parseInt(formData.age),
+        grade: formData.grade,
+        supportNeeds,
+        careNotes: formData.careNotes,
+        emergencyContacts: formData.emergencyContactName ? [{
+          id: Date.now().toString(),
+          name: formData.emergencyContactName,
+          phone: formData.emergencyContactPhone,
+          relationship: formData.emergencyContactRelationship,
+          isPrimary: true
+        }] : [],
+        iepGoals: [],
+        schedule: newSchedule,
+        createdAt: new Date().toISOString()
+      }
+
+      await setStudents(current => [...current, newStudent])
+      toast.success(`${newStudent.name} has been added successfully`)
+      
+      // Reset form
+      setFormData({
+        name: '',
+        age: '',
+        grade: '',
+        careNotes: '',
+        emergencyContactName: '',
+        emergencyContactPhone: '',
+        emergencyContactRelationship: ''
+      })
+      setSupportNeeds([])
+      setNewSupportNeed('')
+      onOpenChange(false)
+    } catch (error) {
+      console.error('Error adding student:', error)
+      toast.error('Failed to add student')
+    }
   }
 
   const addSupportNeed = () => {

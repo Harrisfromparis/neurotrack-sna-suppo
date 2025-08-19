@@ -8,6 +8,7 @@ export interface Student {
   supportNeeds: string[]
   careNotes: string
   iepGoals: IEPGoal[]
+  schedule: DailySchedule
   createdAt: string
 }
 
@@ -26,6 +27,51 @@ export interface IEPGoal {
   targetDate: string
   progress: number
   category: 'academic' | 'behavioral' | 'social' | 'communication'
+}
+
+export interface DailySchedule {
+  id: string
+  studentId: string
+  effectiveDate: string
+  endDate?: string
+  blocks: ScheduleBlock[]
+  breaks: ScheduleBreak[]
+  specialInstructions?: string
+  lastUpdated: string
+  updatedBy: string
+  isActive: boolean
+}
+
+export interface ScheduleBlock {
+  id: string
+  title: string
+  startTime: string // HH:mm format
+  endTime: string   // HH:mm format
+  type: 'academic' | 'therapy' | 'meal' | 'recreation' | 'sensory' | 'transition' | 'medication' | 'care'
+  location: string
+  instructor?: string
+  description?: string
+  objectives?: string[]
+  accommodations?: string[]
+  requiredSupport: 'independent' | 'minimal' | 'moderate' | 'maximum'
+  color?: string
+  isRecurring: boolean
+  recurringDays?: ('monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday')[]
+  materials?: string[]
+  preparationNotes?: string
+  priority: 'low' | 'medium' | 'high' | 'critical'
+}
+
+export interface ScheduleBreak {
+  id: string
+  title: string
+  startTime: string
+  endTime: string
+  type: 'snack' | 'bathroom' | 'sensory' | 'movement' | 'rest' | 'social'
+  location: string
+  isFlexible: boolean
+  supportNeeded?: string
+  notes?: string
 }
 
 export interface BehaviorLog {
