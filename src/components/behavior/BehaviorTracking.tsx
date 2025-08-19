@@ -61,9 +61,6 @@ export function BehaviorTracking({ students, selectedStudentId, onSelectStudent 
     'peer-conflict', 'academic-demand', 'sensory-overload', 'fatigue'
   ]
 
-  const selectedStudent = students.find(s => s.id === selectedStudentId)
-  const studentLogs = behaviorLogs.filter(log => log.studentId === selectedStudentId)
-
   // Update form when student changes
   useEffect(() => {
     setNewLog(prev => ({
