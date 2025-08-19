@@ -253,3 +253,82 @@ export interface UserFeedback {
   status: 'new' | 'in-review' | 'resolved' | 'closed'
   attachments?: Attachment[]
 }
+
+// Authentication and User Management Types
+export interface User {
+  id: string
+  email: string
+  name: string
+  role: 'sna' | 'teacher' | 'administrator' | 'substitute'
+  permissions: Permission[]
+  lastLogin?: string
+  createdAt: string
+  isActive: boolean
+  gdprConsent: GDPRConsent
+}
+
+export interface Permission {
+  resource: 'students' | 'behavior-logs' | 'activity-logs' | 'messages' | 'crisis-protocols' | 'analytics' | 'system-settings'
+  actions: ('create' | 'read' | 'update' | 'delete')[]
+}
+
+export interface AuthSession {
+  id: string
+  userId: string
+  token: string
+  expiresAt: string
+  createdAt: string
+  lastActivity: string
+  ipAddress?: string
+  userAgent?: string
+}
+
+// GDPR Compliance Types
+export interface GDPRConsent {
+  id: string
+  userId: string
+  consentGiven: boolean
+  consentDate: string
+  consentVersion: string
+  dataProcessingPurposes: DataProcessingPurpose[]
+  withdrawnAt?: string
+  lastUpdated: string
+}
+
+export interface DataProcessingPurpose {
+  id: string
+  name: string
+  description: string
+  required: boolean
+  consented: boolean
+}
+
+export interface DataExportRequest {
+  id: string
+  userId: string
+  requestedAt: string
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+  completedAt?: string
+  downloadUrl?: string
+  expiresAt?: string
+}
+
+export interface DataDeletionRequest {
+  id: string
+  userId: string
+  requestedAt: string
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+  completedAt?: string
+  retentionPeriod?: number // days
+  reason?: string
+}
+
+export interface PrivacySettings {
+  id: string
+  userId: string
+  dataRetentionPeriod: number // days
+  allowAnalytics: boolean
+  allowMarketing: boolean
+  shareWithPartners: boolean
+  lastUpdated: string
+}
