@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useKV } from '@github/spark/hooks'
 import { Student, Message } from '@/lib/types'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -22,7 +22,7 @@ export function CommunicationHub({ students, selectedStudentId, onSelectStudent 
   const [messages, setMessages] = useKV<Message[]>('messages', [])
   const [showNewMessage, setShowNewMessage] = useState(false)
   const [newMessage, setNewMessage] = useState({
-    studentId: selectedStudentId,
+    studentId: '',
     to: '',
     subject: '',
     content: '',
@@ -34,6 +34,14 @@ export function CommunicationHub({ students, selectedStudentId, onSelectStudent 
   const studentMessages = selectedStudentId ? 
     messages.filter(msg => msg.studentId === selectedStudentId) : 
     messages
+
+  // Update form when student changes
+  useEffect(() => {
+    setNewMessage(prev => ({
+      ...prev,
+      studentId: selectedStudentId || ''
+    }))
+  }, [selectedStudentId])
 
   const handleSendMessage = () => {
     if (!newMessage.to || !newMessage.subject || !newMessage.content) {
@@ -54,7 +62,7 @@ export function CommunicationHub({ students, selectedStudentId, onSelectStudent 
     toast.success('Message sent successfully')
     
     setNewMessage({
-      studentId: selectedStudentId,
+      studentId: selectedStudentId || '',
       to: '',
       subject: '',
       content: '',

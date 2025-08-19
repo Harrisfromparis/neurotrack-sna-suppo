@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useKV } from '@github/spark/hooks'
 import { Student, BehaviorLog } from '@/lib/types'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -22,7 +22,7 @@ export function BehaviorTracking({ students, selectedStudentId, onSelectStudent 
   const [behaviorLogs, setBehaviorLogs] = useKV<BehaviorLog[]>('behavior-logs', [])
   const [showAddLog, setShowAddLog] = useState(false)
   const [newLog, setNewLog] = useState({
-    studentId: selectedStudentId,
+    studentId: '',
     type: 'neutral' as 'positive' | 'challenging' | 'neutral',
     severity: 3 as 1 | 2 | 3 | 4 | 5,
     trigger: '',
@@ -34,6 +34,14 @@ export function BehaviorTracking({ students, selectedStudentId, onSelectStudent 
 
   const selectedStudent = students.find(s => s.id === selectedStudentId)
   const studentLogs = behaviorLogs.filter(log => log.studentId === selectedStudentId)
+
+  // Update form when student changes
+  useEffect(() => {
+    setNewLog(prev => ({
+      ...prev,
+      studentId: selectedStudentId || ''
+    }))
+  }, [selectedStudentId])
 
   const handleAddLog = () => {
     if (!newLog.studentId || !newLog.behavior || !newLog.intervention) {
@@ -51,7 +59,7 @@ export function BehaviorTracking({ students, selectedStudentId, onSelectStudent 
     toast.success('Behavior log added successfully')
     
     setNewLog({
-      studentId: selectedStudentId,
+      studentId: selectedStudentId || '',
       type: 'neutral',
       severity: 3,
       trigger: '',

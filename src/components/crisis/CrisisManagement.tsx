@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useKV } from '@github/spark/hooks'
 import { Student, CrisisProtocol } from '@/lib/types'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -23,7 +23,7 @@ export function CrisisManagement({ students, selectedStudentId, onSelectStudent 
   const [showAddProtocol, setShowAddProtocol] = useState(false)
   const [activeEmergency, setActiveEmergency] = useState<string | null>(null)
   const [newProtocol, setNewProtocol] = useState({
-    studentId: selectedStudentId,
+    studentId: '',
     triggerSigns: [''],
     deEscalationSteps: [''],
     emergencyProcedure: ''
@@ -31,6 +31,28 @@ export function CrisisManagement({ students, selectedStudentId, onSelectStudent 
 
   const selectedStudent = students.find(s => s.id === selectedStudentId)
   const studentProtocol = crisisProtocols.find(protocol => protocol.studentId === selectedStudentId)
+
+  // Update form when student changes or dialog opens
+  useEffect(() => {
+    if (selectedStudentId) {
+      const existingProtocol = crisisProtocols.find(p => p.studentId === selectedStudentId)
+      if (existingProtocol) {
+        setNewProtocol({
+          studentId: selectedStudentId,
+          triggerSigns: [...existingProtocol.triggerSigns],
+          deEscalationSteps: [...existingProtocol.deEscalationSteps],
+          emergencyProcedure: existingProtocol.emergencyProcedure
+        })
+      } else {
+        setNewProtocol({
+          studentId: selectedStudentId,
+          triggerSigns: [''],
+          deEscalationSteps: [''],
+          emergencyProcedure: ''
+        })
+      }
+    }
+  }, [selectedStudentId, crisisProtocols, showAddProtocol])
 
   const handleAddProtocol = () => {
     if (!newProtocol.studentId || !newProtocol.emergencyProcedure) {
@@ -61,7 +83,7 @@ export function CrisisManagement({ students, selectedStudentId, onSelectStudent 
 
   const resetForm = () => {
     setNewProtocol({
-      studentId: selectedStudentId,
+      studentId: selectedStudentId || '',
       triggerSigns: [''],
       deEscalationSteps: [''],
       emergencyProcedure: ''
