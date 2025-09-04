@@ -161,6 +161,10 @@ export interface Message {
   forwardedFrom?: string
   editHistory?: MessageEdit[]
   importance: 1 | 2 | 3 | 4 | 5
+  // ML Analysis fields
+  mlAnalysis?: MLAnalysis
+  autoAdjustedPriority?: boolean
+  autoSuggestedType?: boolean
 }
 
 export interface CrisisProtocol {
@@ -331,4 +335,37 @@ export interface PrivacySettings {
   allowMarketing: boolean
   shareWithPartners: boolean
   lastUpdated: string
+}
+
+// Machine Learning Types
+export interface Intent {
+  type: string
+  confidence: number
+  category: 'support' | 'crisis' | 'routine' | 'medical' | 'behavioral' | 'academic'
+}
+
+export interface Entity {
+  type: 'student_name' | 'emotion' | 'behavior' | 'location' | 'time' | 'urgency'
+  value: string
+  confidence: number
+  start: number
+  end: number
+}
+
+export interface MLAnalysis {
+  intents: Intent[]
+  entities: Entity[]
+  sentiment: 'positive' | 'negative' | 'neutral'
+  urgencyScore: number // 0-10 scale
+  suggestedResponse?: string
+  requiredActions?: string[]
+}
+
+export interface AutismKnowledgeItem {
+  id: string
+  category: string
+  content: string
+  keywords: string[]
+  responses: string[]
+  priority: number
 }
