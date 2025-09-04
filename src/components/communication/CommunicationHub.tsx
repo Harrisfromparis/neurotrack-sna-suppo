@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useKV } from '@github/spark/hooks'
-import { Student, Message, MessageRecipient, Attachment } from '@/lib/types'
+import { Student, Message, MessageRecipient, Attachment, MLAnalysis } from '@/lib/types'
+import { mlService } from '@/lib/ml'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -24,6 +25,9 @@ interface CommunicationHubProps {
 export function CommunicationHub({ students, selectedStudentId, onSelectStudent }: CommunicationHubProps) {
   const [messages, setMessages] = useKV<Message[]>('messages', [])
   const [showNewMessage, setShowNewMessage] = useState(false)
+  const [mlAnalysis, setMlAnalysis] = useState<MLAnalysis | null>(null)
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [showMLSuggestions, setShowMLSuggestions] = useState(false)
   const { logAction, logError } = useLogging()
   const { trackFormStart, trackFieldInteraction, trackFormSubmit, trackValidationError } = useFormTracking('message-form')
   
@@ -70,6 +74,91 @@ export function CommunicationHub({ students, selectedStudentId, onSelectStudent 
   useEffect(() => {
     logAction('view_communication_hub', selectedStudentId || 'all_messages')
   }, [selectedStudentId, logAction])
+
+  // Initialize ML service
+  useEffect(() => {
+    const initializeML = async () => {
+      try {
+        await mlService.initialize()
+      } catch (error) {
+        logError('ml_initialization_failed', { error: error instanceof Error ? error.message : 'Unknown error' })
+      }
+    }
+    initializeML()
+  }, [logError])
+
+  // Analyze message content for ML insights
+  const analyzeMessageContent = async (content: string) => {
+    if (!content.trim()) {
+      setMlAnalysis(null)
+      return
+    }
+
+    setIsAnalyzing(true)
+    try {
+      const analysis = await mlService.analyzeMessage(content, {
+        studentId: selectedStudentId,
+        senderRole: 'sna'
+      })
+      
+      setMlAnalysis(analysis)
+      
+      // Auto-adjust priority based on urgency score
+      if (analysis.urgencyScore >= 8 && newMessage.priority !== 'urgent') {
+        setNewMessage(prev => ({ ...prev, priority: 'urgent' }))
+        toast.info('Message priority auto-adjusted to urgent based on content analysis')
+      } else if (analysis.urgencyScore >= 6 && newMessage.priority === 'normal') {
+        setNewMessage(prev => ({ ...prev, priority: 'high' }))
+        toast.info('Message priority auto-adjusted to high based on content analysis')
+      }
+
+      // Auto-categorize message type based on intents
+      const primaryIntent = analysis.intents[0]
+      if (primaryIntent) {
+        const typeMapping = {
+          crisis: 'safety',
+          medical: 'health', 
+          behavioral: 'behavior',
+          academic: 'academic',
+          support: 'general',
+          routine: 'general'
+        }
+        
+        const suggestedType = typeMapping[primaryIntent.category] as typeof newMessage.type
+        if (suggestedType !== newMessage.type) {
+          setNewMessage(prev => ({ ...prev, type: suggestedType }))
+        }
+      }
+
+      // Suggest response requirements for high urgency
+      if (analysis.urgencyScore >= 7 && !newMessage.requiresResponse) {
+        setNewMessage(prev => ({ 
+          ...prev, 
+          requiresResponse: true,
+          responseDeadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0] // Tomorrow
+        }))
+      }
+
+    } catch (error) {
+      logError('ml_analysis_failed', { error: error instanceof Error ? error.message : 'Unknown error' })
+      setMlAnalysis(null)
+    } finally {
+      setIsAnalyzing(false)
+    }
+  }
+
+  // Trigger ML analysis when content changes
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (newMessage.content.length > 10) { // Only analyze substantial content
+        analyzeMessageContent(newMessage.content)
+      } else {
+        setMlAnalysis(null)
+      }
+    }, 1000) // Debounce analysis
+
+    return () => clearTimeout(timeoutId)
+  }, [newMessage.content])
 
   const handleSendMessage = async () => {
     trackFormStart()
@@ -127,7 +216,11 @@ export function CommunicationHub({ students, selectedStudentId, onSelectStudent 
         },
         encryption: newMessage.confidential,
         replyToId: newMessage.replyToId || undefined,
-        importance: newMessage.priority === 'urgent' ? 5 : newMessage.priority === 'high' ? 4 : 3
+        importance: newMessage.priority === 'urgent' ? 5 : newMessage.priority === 'high' ? 4 : 3,
+        // ML Analysis data
+        mlAnalysis,
+        autoAdjustedPriority: mlAnalysis?.urgencyScore ? mlAnalysis.urgencyScore >= 6 : false,
+        autoSuggestedType: mlAnalysis?.intents.length ? mlAnalysis.intents.length > 0 : false
       }
 
       setMessages(current => [...current, message])
@@ -458,6 +551,123 @@ export function CommunicationHub({ students, selectedStudentId, onSelectStudent 
                         rows={6}
                         required
                       />
+                      
+                      {/* ML Analysis Display */}
+                      {(isAnalyzing || mlAnalysis) && (
+                        <div className="mt-3 p-3 bg-muted/50 rounded-md border">
+                          <div className="flex items-center justify-between mb-2">
+                            <Label className="text-sm font-medium">🤖 AI Analysis</Label>
+                            {mlAnalysis && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setShowMLSuggestions(!showMLSuggestions)}
+                                className="text-xs"
+                              >
+                                {showMLSuggestions ? 'Hide Details' : 'Show Details'}
+                              </Button>
+                            )}
+                          </div>
+                          
+                          {isAnalyzing ? (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
+                              Analyzing message content...
+                            </div>
+                          ) : mlAnalysis ? (
+                            <div className="space-y-2">
+                              {/* Urgency Score */}
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm">Urgency Level:</span>
+                                <Badge 
+                                  variant={
+                                    mlAnalysis.urgencyScore >= 8 ? 'destructive' :
+                                    mlAnalysis.urgencyScore >= 6 ? 'default' : 'secondary'
+                                  }
+                                  className="text-xs"
+                                >
+                                  {mlAnalysis.urgencyScore}/10
+                                </Badge>
+                                {mlAnalysis.urgencyScore >= 8 && (
+                                  <span className="text-xs text-red-600">High Priority</span>
+                                )}
+                              </div>
+                              
+                              {/* Sentiment */}
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm">Sentiment:</span>
+                                <Badge variant="outline" className="text-xs">
+                                  {mlAnalysis.sentiment === 'positive' ? '😊' : 
+                                   mlAnalysis.sentiment === 'negative' ? '😞' : '😐'} 
+                                  {mlAnalysis.sentiment}
+                                </Badge>
+                              </div>
+                              
+                              {/* Primary Intent */}
+                              {mlAnalysis.intents.length > 0 && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm">Detected Intent:</span>
+                                  <Badge variant="secondary" className="text-xs">
+                                    {mlAnalysis.intents[0].category} ({Math.round(mlAnalysis.intents[0].confidence * 100)}%)
+                                  </Badge>
+                                </div>
+                              )}
+                              
+                              {/* Suggested Response */}
+                              {mlAnalysis.suggestedResponse && showMLSuggestions && (
+                                <div className="mt-3 p-2 bg-background rounded border">
+                                  <Label className="text-xs font-medium text-muted-foreground">Suggested Response:</Label>
+                                  <p className="text-sm mt-1">{mlAnalysis.suggestedResponse}</p>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="mt-2 text-xs"
+                                    onClick={() => {
+                                      setNewMessage(prev => ({ 
+                                        ...prev, 
+                                        content: prev.content + '\n\n' + mlAnalysis.suggestedResponse 
+                                      }))
+                                    }}
+                                  >
+                                    Add to Message
+                                  </Button>
+                                </div>
+                              )}
+                              
+                              {/* Required Actions */}
+                              {mlAnalysis.requiredActions && mlAnalysis.requiredActions.length > 0 && showMLSuggestions && (
+                                <div className="mt-3 p-2 bg-yellow-50 rounded border border-yellow-200">
+                                  <Label className="text-xs font-medium text-yellow-800">Recommended Actions:</Label>
+                                  <ul className="text-xs mt-1 space-y-1 text-yellow-700">
+                                    {mlAnalysis.requiredActions.map((action, index) => (
+                                      <li key={index} className="flex items-start gap-1">
+                                        <span>•</span>
+                                        <span>{action.replace(/_/g, ' ')}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              
+                              {/* Entities Detected */}
+                              {mlAnalysis.entities && mlAnalysis.entities.length > 0 && showMLSuggestions && (
+                                <div className="mt-3">
+                                  <Label className="text-xs font-medium text-muted-foreground">Detected Information:</Label>
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {mlAnalysis.entities.map((entity, index) => (
+                                      <Badge key={index} variant="outline" className="text-xs">
+                                        {entity.type}: {entity.value}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ) : null}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -607,6 +817,36 @@ export function CommunicationHub({ students, selectedStudentId, onSelectStudent 
                     <div className="text-sm">
                       <p className="whitespace-pre-wrap">{message.content}</p>
                     </div>
+
+                    {/* ML Analysis Results */}
+                    {message.mlAnalysis && (
+                      <div className="text-xs bg-blue-50 p-2 rounded border border-blue-200">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-medium text-blue-800">🤖 AI Analysis Results</span>
+                          {(message.autoAdjustedPriority || message.autoSuggestedType) && (
+                            <Badge variant="secondary" className="text-xs">
+                              AI Enhanced
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-blue-700">
+                          <div>Urgency: {message.mlAnalysis.urgencyScore}/10</div>
+                          <div>Sentiment: {message.mlAnalysis.sentiment}</div>
+                          {message.mlAnalysis.intents.length > 0 && (
+                            <div>Intent: {message.mlAnalysis.intents[0].category}</div>
+                          )}
+                        </div>
+                        {message.mlAnalysis.requiredActions && message.mlAnalysis.requiredActions.length > 0 && (
+                          <div className="mt-1">
+                            <span className="font-medium">Actions: </span>
+                            {message.mlAnalysis.requiredActions.slice(0, 2).map(action => 
+                              action.replace(/_/g, ' ')
+                            ).join(', ')}
+                            {message.mlAnalysis.requiredActions.length > 2 && '...'}
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Recipients status */}
                     {message.recipients && message.recipients.length > 0 && (

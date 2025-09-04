@@ -1,0 +1,307 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run type checking
+      run: npx tsc --noEmit
+      
+    - name: Build application
+      run: npm run build
+      
+    - name: Run security audit
+      run: npm audit --audit-level moderate
+      continue-on-error: true
+
+  code-quality:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Create ESLint config
+      run: |
+        cat > eslint.config.js << 'EOF'
+        import js from '@eslint/js'
+        import globals from 'globals'
+        import reactHooks from 'eslint-plugin-react-hooks'
+        import reactRefresh from 'eslint-plugin-react-refresh'
+        import tseslint from 'typescript-eslint'
+
+        export default tseslint.config(
+          { ignores: ['dist'] },
+          {
+            extends: [js.configs.recommended, ...tseslint.configs.recommended],
+            files: ['**/*.{ts,tsx}'],
+            languageOptions: {
+              ecmaVersion: 2020,
+              globals: globals.browser,
+            },
+            plugins: {
+              'react-hooks': reactHooks,
+              'react-refresh': reactRefresh,
+            },
+            rules: {
+              ...reactHooks.configs.recommended.rules,
+              'react-refresh/only-export-components': [
+                'warn',
+                { allowConstantExport: true },
+              ],
+              '@typescript-eslint/no-unused-vars': 'warn',
+              '@typescript-eslint/no-explicit-any': 'warn',
+            },
+          },
+        )
+        EOF
+        
+    - name: Run linting
+      run: npx eslint .
+      continue-on-error: true
+
+  security-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: typescript, javascript
+        
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v3
+      
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+
+  build-and-deploy:
+    needs: [test, code-quality]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build for production
+      run: npm run build
+      env:
+        NODE_ENV: production
+        
+    - name: Create deployment package
+      run: |
+        tar -czf neurotrack-build.tar.gz dist/
+        
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: production-build
+        path: |
+          dist/
+          neurotrack-build.tar.gz
+        retention-days: 30
+        
+    # Deploy to GitHub Pages (example hosting service)
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      if: github.ref == 'refs/heads/main'
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./dist
+        
+    # Example deployment to Vercel (alternative hosting)
+    - name: Deploy to Vercel
+      uses: amondnet/vercel-action@v25
+      if: github.ref == 'refs/heads/main'
+      with:
+        vercel-token: ${{ secrets.VERCEL_TOKEN }}
+        vercel-org-id: ${{ secrets.ORG_ID }}
+        vercel-project-id: ${{ secrets.PROJECT_ID }}
+        working-directory: ./
+      continue-on-error: true
+        
+    # Example deployment to Netlify (alternative hosting)
+    - name: Deploy to Netlify
+      uses: nwtgck/actions-netlify@v3
+      if: github.ref == 'refs/heads/main'
+      with:
+        publish-dir: './dist'
+        production-branch: main
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        deploy-message: "Deploy from GitHub Actions"
+        enable-pull-request-comment: false
+        enable-commit-comment: true
+      env:
+        NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+      continue-on-error: true
+
+  ml-data-processing:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Process autism knowledge base
+      run: |
+        node -e "
+        const fs = require('fs');
+        const path = require('path');
+        
+        // Create sample autism knowledge data for processing
+        const knowledgeData = [
+          {
+            category: 'sensory',
+            content: 'Sensory overload management: Create quiet spaces, use noise-canceling headphones, dim lighting',
+            keywords: ['sensory', 'overload', 'quiet', 'noise', 'lighting']
+          },
+          {
+            category: 'communication',
+            content: 'Alternative communication methods: Visual schedules, PECS, sign language, AAC devices',
+            keywords: ['communication', 'visual', 'PECS', 'sign', 'AAC']
+          },
+          {
+            category: 'social',
+            content: 'Social skills development: Role-playing, social stories, peer interactions, structured activities',
+            keywords: ['social', 'role-playing', 'stories', 'peer', 'interactions']
+          }
+        ];
+        
+        // Create data directory
+        const dataDir = path.join(process.cwd(), 'public', 'data');
+        fs.mkdirSync(dataDir, { recursive: true });
+        
+        // Export processed data for chatbot consumption
+        const chatbotData = {
+          intents: knowledgeData.map(item => ({
+            name: \`\${item.category}_support\`,
+            examples: [item.content, ...item.keywords.map(k => \`Help with \${k}\`)]
+          })),
+          entities: [
+            {
+              name: 'autism_keywords',
+              values: knowledgeData.flatMap(item => item.keywords)
+            }
+          ],
+          responses: knowledgeData.map(item => ({
+            intent: \`\${item.category}_support\`,
+            text: [
+              \`Here are some strategies for \${item.category} support:\`,
+              item.content,
+              'Would you like more specific guidance for this situation?'
+            ]
+          }))
+        };
+        
+        // Write processed data
+        fs.writeFileSync(
+          path.join(dataDir, 'autism-knowledge-base.json'),
+          JSON.stringify(knowledgeData, null, 2)
+        );
+        
+        fs.writeFileSync(
+          path.join(dataDir, 'chatbot-training-data.json'), 
+          JSON.stringify(chatbotData, null, 2)
+        );
+        
+        console.log('✅ ML data processing completed');
+        console.log(\`📊 Processed \${knowledgeData.length} knowledge items\`);
+        console.log(\`🤖 Generated \${chatbotData.intents.length} intents for chatbot\`);
+        "
+        
+    - name: Validate processed data
+      run: |
+        if [ -f "public/data/autism-knowledge-base.json" ] && [ -f "public/data/chatbot-training-data.json" ]; then
+          echo "✅ ML data files created successfully"
+          echo "📁 Knowledge base size: $(wc -l < public/data/autism-knowledge-base.json) lines"
+          echo "📁 Chatbot data size: $(wc -l < public/data/chatbot-training-data.json) lines"
+        else
+          echo "❌ ML data processing failed"
+          exit 1
+        fi
+        
+    - name: Upload ML data artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ml-processed-data
+        path: |
+          public/data/autism-knowledge-base.json
+          public/data/chatbot-training-data.json
+        retention-days: 90
+
+  notification:
+    needs: [build-and-deploy, ml-data-processing]
+    runs-on: ubuntu-latest
+    if: always() && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Deployment notification
+      run: |
+        if [ "${{ needs.build-and-deploy.result }}" == "success" ] && [ "${{ needs.ml-data-processing.result }}" == "success" ]; then
+          echo "🚀 Deployment completed successfully!"
+          echo "✅ Application deployed"
+          echo "🤖 ML data processing completed"
+          echo "📊 Chatbot training data updated"
+        else
+          echo "⚠️ Some deployment steps failed. Check the logs for details."
+        fi
