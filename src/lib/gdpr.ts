@@ -1,11 +1,6 @@
-import { DataExportRequest, DataDeletionRequest, PrivacySettings, User } from './types'
+import { DataExportRequest, DataDeletionRequest, PrivacySettings, User, BehaviorLog, ActivityLog, Message } from './types'
 import { authService } from './auth'
 import { loggingService } from './logging'
-
-// spark is available as a global variable from @github/spark/spark
-declare global {
-  const spark: any
-}
 
 class GDPRService {
   /**
@@ -278,21 +273,21 @@ class GDPRService {
       const activities = sessions?.activities || []
 
       // Get behavior logs where user was involved
-      const behaviorLogs = await spark.kv.get('behavior-logs') || []
-      const userBehaviorLogs = behaviorLogs.filter((log: any) => 
+      const behaviorLogs = await spark.kv.get<BehaviorLog[]>('behavior-logs') || []
+      const userBehaviorLogs = behaviorLogs.filter(log => 
         log.recordedBy === userId || log.studentId === userId
       )
 
       // Get activity logs where user was involved
-      const activityLogs = await spark.kv.get('activity-logs') || []
-      const userActivityLogs = activityLogs.filter((log: any) => 
+      const activityLogs = await spark.kv.get<ActivityLog[]>('activity-logs') || []
+      const userActivityLogs = activityLogs.filter(log => 
         log.recordedBy === userId
       )
 
       // Get messages involving the user
-      const messages = await spark.kv.get('messages') || []
-      const userMessages = messages.filter((msg: any) => 
-        msg.senderId === userId || msg.recipientId === userId
+      const messages = await spark.kv.get<Message[]>('messages') || []
+      const userMessages = messages.filter(msg => 
+        msg.from === userId || msg.to.includes(userId)
       )
 
       return {

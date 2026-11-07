@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { BarChart, TrendingUp, Users, Activity, MessageCircle, AlertTriangle, Download, Calendar } from '@phosphor-icons/react'
+import { ChartBar, TrendUp, Users, Activity, ChatCircle, Warning, Download, Calendar } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { loggingService } from '@/lib/logging'
 import { useLogging } from '@/hooks/useLogging'
@@ -18,9 +18,9 @@ interface AnalyticsReportsProps {
 }
 
 export function AnalyticsReports({ students, selectedStudentId, onSelectStudent }: AnalyticsReportsProps) {
-  const [behaviorLogs] = useKV<BehaviorLog[]>('behavior-logs', [])
-  const [activityLogs] = useKV<ActivityLog[]>('activity-logs', [])
-  const [messages] = useKV<Message[]>('messages', [])
+  const [behaviorLogs = []] = useKV<BehaviorLog[]>('behavior-logs', [])
+  const [activityLogs = []] = useKV<ActivityLog[]>('activity-logs', [])
+  const [messages = []] = useKV<Message[]>('messages', [])
   const [systemLogs, setSystemLogs] = useState<SystemLog[]>([])
   const [dateRange, setDateRange] = useState('7days')
   const [reportType, setReportType] = useState('overview')
@@ -105,7 +105,7 @@ export function AnalyticsReports({ students, selectedStudentId, onSelectStudent 
       ? behaviorLogs.filter(log => log.studentId === selectedStudentId)
       : behaviorLogs
     
-    const weeklyData = []
+    const weeklyData: { date: string; positive: number; challenging: number; neutral: number; total: number }[] = []
     const now = new Date()
     
     for (let i = 6; i >= 0; i--) {
@@ -210,10 +210,10 @@ export function AnalyticsReports({ students, selectedStudentId, onSelectStudent 
         dataSize: dataStr.length
       })
       
-      toast.success('Report exported successfully')
+      toast.success('Report downloaded')
     } catch (error) {
       console.error('Export failed:', error)
-      toast.error('Failed to export report')
+      toast.error('Could not download the report')
     }
   }
 
@@ -275,7 +275,7 @@ export function AnalyticsReports({ students, selectedStudentId, onSelectStudent 
                 <CardContent>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span>Behavior Logs:</span>
+                      <span>Behaviour notes:</span>
                       <span>{studentBehaviorLogs.length}</span>
                     </div>
                     <div className="flex justify-between">
@@ -283,7 +283,7 @@ export function AnalyticsReports({ students, selectedStudentId, onSelectStudent 
                       <span>{studentActivityLogs.length}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Positive Behaviors:</span>
+                      <span>Going well:</span>
                       <span className="text-green-600">
                         {studentBehaviorLogs.filter(log => log.type === 'positive').length}
                       </span>
@@ -299,19 +299,19 @@ export function AnalyticsReports({ students, selectedStudentId, onSelectStudent 
       <Tabs value={reportType} onValueChange={setReportType} className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview" className="flex items-center gap-2">
-            <BarChart className="h-4 w-4" />
+            <ChartBar className="h-4 w-4" />
             Overview
           </TabsTrigger>
           <TabsTrigger value="behavior" className="flex items-center gap-2">
-            <TrendingUp className="h-4 w-4" />
-            Behavior Trends
+            <TrendUp className="h-4 w-4" />
+            Behaviour patterns
           </TabsTrigger>
           <TabsTrigger value="activities" className="flex items-center gap-2">
             <Activity className="h-4 w-4" />
             Activities
           </TabsTrigger>
           <TabsTrigger value="system" className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4" />
+            <Warning className="h-4 w-4" />
             System Logs
           </TabsTrigger>
         </TabsList>
@@ -320,8 +320,8 @@ export function AnalyticsReports({ students, selectedStudentId, onSelectStudent 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Behavior Logs</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Behaviour notes</CardTitle>
+                <TrendUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats.totalBehaviorLogs}</div>
@@ -347,7 +347,7 @@ export function AnalyticsReports({ students, selectedStudentId, onSelectStudent 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Messages</CardTitle>
-                <MessageCircle className="h-4 w-4 text-muted-foreground" />
+                <ChatCircle className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats.totalMessages}</div>
@@ -374,7 +374,7 @@ export function AnalyticsReports({ students, selectedStudentId, onSelectStudent 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>Behavior Trends (Last 7 Days)</CardTitle>
+                <CardTitle>Behaviour over the last 7 days</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -423,7 +423,7 @@ export function AnalyticsReports({ students, selectedStudentId, onSelectStudent 
 
             <Card>
               <CardHeader>
-                <CardTitle>Activity Breakdown</CardTitle>
+                <CardTitle>Activities by type</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -453,7 +453,7 @@ export function AnalyticsReports({ students, selectedStudentId, onSelectStudent 
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Intervention Effectiveness</CardTitle>
+                <CardTitle>What is working</CardTitle>
                 <CardDescription>
                   Average effectiveness rating for different intervention strategies
                 </CardDescription>
@@ -504,7 +504,7 @@ export function AnalyticsReports({ students, selectedStudentId, onSelectStudent 
         <TabsContent value="activities">
           <Card>
             <CardHeader>
-              <CardTitle>Activity Performance Analysis</CardTitle>
+              <CardTitle>How activities went</CardTitle>
               <CardDescription>
                 Detailed breakdown of activity engagement and success rates
               </CardDescription>
@@ -520,7 +520,7 @@ export function AnalyticsReports({ students, selectedStudentId, onSelectStudent 
         <TabsContent value="system">
           <Card>
             <CardHeader>
-              <CardTitle>System Activity Logs</CardTitle>
+              <CardTitle>System activity</CardTitle>
               <CardDescription>
                 Technical logs and user activity tracking
               </CardDescription>

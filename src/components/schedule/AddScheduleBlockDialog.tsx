@@ -133,7 +133,7 @@ export function AddScheduleBlockDialog({ open, onOpenChange, studentId, students
     if (!selectedStudent) return
 
     if (!formData.title || !formData.startTime || !formData.endTime || !formData.type || !formData.requiredSupport) {
-      toast.error('Please fill in all required fields')
+      toast.error('Some required fields are still empty')
       return
     }
 
@@ -195,12 +195,12 @@ export function AddScheduleBlockDialog({ open, onOpenChange, studentId, students
       )
 
       await setStudents(updatedStudents)
-      toast.success('Schedule block added successfully')
+      toast.success('Added to the schedule')
       resetForm()
       onOpenChange(false)
     } catch (error) {
       console.error('Error adding schedule block:', error)
-      toast.error('Failed to add schedule block')
+      toast.error('Could not add that to the schedule')
     } finally {
       setIsLoading(false)
     }
@@ -217,14 +217,14 @@ export function AddScheduleBlockDialog({ open, onOpenChange, studentId, students
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add Schedule Block</DialogTitle>
+          <DialogTitle>Add to the schedule</DialogTitle>
           <DialogDescription>
             Create a new schedule block for {selectedStudent?.name}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Information */}
+          {/* The basics */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="title">Title *</Label>
@@ -471,7 +471,7 @@ export function AddScheduleBlockDialog({ open, onOpenChange, studentId, students
               Cancel
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? 'Adding...' : 'Add Schedule Block'}
+              {isLoading ? 'Adding...' : 'Add to the schedule'}
             </Button>
           </DialogFooter>
         </form>

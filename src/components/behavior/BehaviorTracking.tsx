@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Plus, TrendingUp, AlertTriangle, CheckCircle, Clock, MapPin, User, Tag } from '@phosphor-icons/react'
+import { Plus, TrendUp, Warning, CheckCircle, Clock, MapPin, User, Tag } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { useLogging, useFormTracking } from '@/hooks/useLogging'
 import { getCurrentSessionId } from '@/lib/logging'
@@ -22,7 +22,7 @@ interface BehaviorTrackingProps {
 }
 
 export function BehaviorTracking({ students, selectedStudentId, onSelectStudent }: BehaviorTrackingProps) {
-  const [behaviorLogs, setBehaviorLogs] = useKV<BehaviorLog[]>('behavior-logs', [])
+  const [behaviorLogs = [], setBehaviorLogs] = useKV<BehaviorLog[]>('behavior-logs', [])
   const [showAddLog, setShowAddLog] = useState(false)
   const { logAction, logError } = useLogging()
   const { trackFormStart, trackFieldInteraction, trackFormSubmit, trackValidationError } = useFormTracking('behavior-log-form')
@@ -79,13 +79,13 @@ export function BehaviorTracking({ students, selectedStudentId, onSelectStudent 
     
     // Validation
     if (!newLog.studentId || !newLog.behavior || !newLog.intervention) {
-      const missingFields = []
+      const missingFields: string[] = []
       if (!newLog.studentId) missingFields.push('student')
       if (!newLog.behavior) missingFields.push('behavior')
       if (!newLog.intervention) missingFields.push('intervention')
       
       trackValidationError('required-fields', `Missing: ${missingFields.join(', ')}`)
-      toast.error('Please fill in required fields')
+      toast.error('Some required fields are still empty')
       return
     }
 
@@ -106,7 +106,7 @@ export function BehaviorTracking({ students, selectedStudentId, onSelectStudent 
         status: 'submitted'
       }
 
-      setBehaviorLogs(current => [...current, log])
+      setBehaviorLogs(current => [...(current ?? []), log])
       
       logAction('behavior_log_created', selectedStudentId, {
         behaviorType: log.type,
@@ -125,7 +125,7 @@ export function BehaviorTracking({ students, selectedStudentId, onSelectStudent 
         hasTags: log.tags.length > 0
       }, true)
       
-      toast.success('Behavior log added successfully')
+      toast.success('Behaviour note saved')
       
       // Reset form
       setNewLog({
@@ -150,7 +150,7 @@ export function BehaviorTracking({ students, selectedStudentId, onSelectStudent 
     } catch (error) {
       logError('behavior_log_creation', error?.toString() || 'Unknown error', selectedStudentId)
       trackFormSubmit({}, false)
-      toast.error('Failed to add behavior log')
+      toast.error('Could not save that behaviour note')
     }
   }
 
@@ -234,19 +234,19 @@ export function BehaviorTracking({ students, selectedStudentId, onSelectStudent 
             </DialogTrigger>
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Add Behavior Log</DialogTitle>
+                <DialogTitle>Add a behaviour note</DialogTitle>
                 <DialogDescription>
                   Record comprehensive behavioral observation for {selectedStudent.name}
                 </DialogDescription>
               </DialogHeader>
               
               <div className="space-y-6">
-                {/* Basic Information */}
+                {/* The basics */}
                 <div>
-                  <h3 className="text-lg font-semibold mb-3">Basic Information</h3>
+                  <h3 className="text-lg font-semibold mb-3">The basics</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label>Behavior Type *</Label>
+                      <Label>Behaviour type *</Label>
                       <Select 
                         onValueChange={(value: any) => {
                           setNewLog(prev => ({ ...prev, type: value }))
@@ -348,9 +348,9 @@ export function BehaviorTracking({ students, selectedStudentId, onSelectStudent 
                   </div>
                 </div>
 
-                {/* ABC Analysis */}
+                {/* Antecedent, behaviour, consequence */}
                 <div>
-                  <h3 className="text-lg font-semibold mb-3">ABC Analysis</h3>
+                  <h3 className="text-lg font-semibold mb-3">Antecedent, behaviour, consequence</h3>
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label>Antecedent (What happened before?)</Label>
@@ -393,7 +393,7 @@ export function BehaviorTracking({ students, selectedStudentId, onSelectStudent 
 
                 {/* Intervention and Outcome */}
                 <div>
-                  <h3 className="text-lg font-semibold mb-3">Intervention & Outcome</h3>
+                  <h3 className="text-lg font-semibold mb-3">What you did, and what happened</h3>
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label>Intervention Used *</Label>
@@ -410,7 +410,7 @@ export function BehaviorTracking({ students, selectedStudentId, onSelectStudent 
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>Intervention Effectiveness (1-5)</Label>
+                        <Label>What is working (1-5)</Label>
                         <Select 
                           onValueChange={(value) => {
                             setNewLog(prev => ({ ...prev, interventionEffectiveness: parseInt(value) as any }))
@@ -511,7 +511,7 @@ export function BehaviorTracking({ students, selectedStudentId, onSelectStudent 
                   <Button variant="outline" onClick={() => setShowAddLog(false)}>
                     Cancel
                   </Button>
-                  <Button onClick={handleAddLog}>Add Behavior Log</Button>
+                  <Button onClick={handleAddLog}>Add a behaviour note</Button>
                 </div>
               </div>
             </DialogContent>
@@ -523,7 +523,7 @@ export function BehaviorTracking({ students, selectedStudentId, onSelectStudent 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Weekly Total</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <TrendUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{weeklyStats.total}</div>
@@ -532,7 +532,7 @@ export function BehaviorTracking({ students, selectedStudentId, onSelectStudent 
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Positive Behaviors</CardTitle>
+            <CardTitle className="text-sm font-medium">Going well</CardTitle>
             <CheckCircle className="h-4 w-4 text-secondary" />
           </CardHeader>
           <CardContent>
@@ -542,8 +542,8 @@ export function BehaviorTracking({ students, selectedStudentId, onSelectStudent 
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Challenging Behaviors</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-destructive" />
+            <CardTitle className="text-sm font-medium">Harder moments</CardTitle>
+            <Warning className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-destructive">{weeklyStats.challenging}</div>
@@ -563,7 +563,7 @@ export function BehaviorTracking({ students, selectedStudentId, onSelectStudent 
 
       <Card>
         <CardHeader>
-          <CardTitle>Recent Behavior Logs</CardTitle>
+          <CardTitle>Recent behaviour notes</CardTitle>
           <CardDescription>Latest behavioral observations and interventions</CardDescription>
         </CardHeader>
         <CardContent>
@@ -648,9 +648,9 @@ export function BehaviorTracking({ students, selectedStudentId, onSelectStudent 
                     )}
 
                     {/* Tags and Environmental Factors */}
-                    {(log.tags?.length > 0 || log.environmentalFactors?.length > 0) && (
+                    {((log.tags?.length ?? 0) > 0 || (log.environmentalFactors?.length ?? 0) > 0) && (
                       <div className="pt-2 border-t">
-                        {log.tags?.length > 0 && (
+                        {log.tags && log.tags.length > 0 && (
                           <div className="mb-2">
                             <span className="font-medium text-sm">Tags:</span>
                             <div className="flex flex-wrap gap-1 mt-1">
@@ -662,7 +662,7 @@ export function BehaviorTracking({ students, selectedStudentId, onSelectStudent 
                             </div>
                           </div>
                         )}
-                        {log.environmentalFactors?.length > 0 && (
+                        {log.environmentalFactors && log.environmentalFactors.length > 0 && (
                           <div className="mb-2">
                             <span className="font-medium text-sm">Environmental Factors:</span>
                             <div className="flex flex-wrap gap-1 mt-1">
@@ -704,8 +704,8 @@ export function BehaviorTracking({ students, selectedStudentId, onSelectStudent 
             </div>
           ) : (
             <div className="text-center py-8">
-              <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No behavior logs recorded yet</p>
+              <TrendUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">No behaviour notes recorded yet</p>
               <p className="text-sm text-muted-foreground">Click "Log Behavior" to add your first entry</p>
             </div>
           )}

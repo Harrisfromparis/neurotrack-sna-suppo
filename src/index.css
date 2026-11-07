@@ -1,42 +1,188 @@
 @import 'tailwindcss';
 @import "tw-animate-css";
 
+/* ---------------------------------------------------------------------------
+   Autism & Me brand kit (edition 1.1)
+   Change the environment, not the child.
+
+   Ground is cream, text is teal, and there is at most one orange action per
+   screen. Orange and dusty blue never carry white text. Every pair below is
+   checked against WCAG 2.2 AA: 4.5:1 for body text, 3:1 for large text,
+   borders and icons.
+   --------------------------------------------------------------------------- */
+
+:root {
+  /* Brand palette ------------------------------------------------------- */
+  --aam-cream: #F8F5EF;
+  --aam-panel: #FDFBF7;
+  --aam-teal: #074151;
+  --aam-teal-hover: #0C5D74;
+  --aam-orange: #F2863D;
+  --aam-orange-text: #B7510C;
+  --aam-dusty: #8FAECA;
+  --aam-mint: #E9F4F6;
+  --aam-sage: #9CAF9C;
+  --aam-terracotta: #C97B5A;
+  --aam-night: #05222B;
+  --aam-rule: #E3DCCF;
+  --aam-muted-text: #55646A;
+  --aam-focus: #1A7D99;
+  --aam-danger: #8A2626;
+
+  /* Component tokens ---------------------------------------------------- */
+  --background: var(--aam-cream);
+  --foreground: var(--aam-teal);          /* 10.2:1 on cream */
+  --card: var(--aam-panel);
+  --card-foreground: var(--aam-teal);
+  --popover: var(--aam-panel);
+  --popover-foreground: var(--aam-teal);
+
+  --primary: var(--aam-teal);
+  --primary-foreground: var(--aam-mint);  /* 9.6:1 on teal */
+  --secondary: var(--aam-mint);
+  --secondary-foreground: var(--aam-teal);
+
+  --muted: var(--aam-mint);
+  --muted-foreground: var(--aam-muted-text); /* 5.6:1 on cream */
+
+  /* The single call to action. Black on orange is 8.25:1; white on orange is
+     2.5:1 and is never used. */
+  --accent: var(--aam-orange);
+  --accent-foreground: #000000;
+
+  --destructive: var(--aam-danger);
+  --destructive-foreground: #FFFFFF;      /* 8.4:1 on danger */
+
+  --border: var(--aam-rule);
+  --input: var(--aam-rule);
+  --ring: var(--aam-focus);
+
+  --radius: 14px;
+  --spacing: 0.3rem;
+
+  --font-sans: "Atkinson Hyperlegible";
+  --font-display: "Poppins";
+  --font-serif: "Atkinson Hyperlegible";
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --aam-measure: 66ch;
+}
+
+/* Dark mode uses Night as the ground with mint text, per the brandbook.
+   Orange becomes text-weight only; it is never a ground for white. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background: var(--aam-night);
+    --foreground: var(--aam-mint);
+    --card: #0A2F3A;
+    --card-foreground: var(--aam-mint);
+    --popover: #0A2F3A;
+    --popover-foreground: var(--aam-mint);
+
+    --primary: var(--aam-mint);
+    --primary-foreground: var(--aam-night);
+    --secondary: #0E3A47;
+    --secondary-foreground: var(--aam-mint);
+
+    --muted: #0E3A47;
+    --muted-foreground: #A3BCC4;          /* 7.4:1 on night */
+
+    --accent: var(--aam-orange);
+    --accent-foreground: #000000;
+
+    --destructive: #F2A8A8;
+    --destructive-foreground: var(--aam-night);
+
+    --border: #1B4855;
+    --input: #1B4855;
+    --ring: #8FC6DA;
+
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --background: var(--aam-night);
+  --foreground: var(--aam-mint);
+  --card: #0A2F3A;
+  --card-foreground: var(--aam-mint);
+  --popover: #0A2F3A;
+  --popover-foreground: var(--aam-mint);
+  --primary: var(--aam-mint);
+  --primary-foreground: var(--aam-night);
+  --secondary: #0E3A47;
+  --secondary-foreground: var(--aam-mint);
+  --muted: #0E3A47;
+  --muted-foreground: #A3BCC4;
+  --accent: var(--aam-orange);
+  --accent-foreground: #000000;
+  --destructive: #F2A8A8;
+  --destructive-foreground: var(--aam-night);
+  --border: #1B4855;
+  --input: #1B4855;
+  --ring: #8FC6DA;
+  color-scheme: dark;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  
+
   body {
     @apply bg-background text-foreground;
-    font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    font-family: var(--font-sans), Verdana, system-ui, sans-serif;
+    /* 18px body, never below 16px on screen */
+    font-size: 1.125rem;
+    line-height: 1.6;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
+    font-weight: 600;
+    line-height: 1.15;
+    text-wrap: balance;
+  }
+
+  /* Buttons and labels are display type, per the kit */
+  button, label, .font-display {
+    font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
+  }
+
+  /* shadcn renders card and dialog titles as plain divs, so they miss the
+     heading rule above. Catch them by slot so every titled surface - card,
+     dialog, alert dialog, sheet, drawer - is set in Poppins. */
+  [data-slot$="-title"] {
+    font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
+    font-weight: 600;
+  }
+
+  /* Comfortable reading measure for body copy */
+  p {
+    max-width: var(--aam-measure);
   }
 }
 
-:root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.2 0 0);
-  --card: oklch(0.98 0 0);
-  --card-foreground: oklch(0.2 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.2 0 0);
-  --primary: oklch(92.8% 0.006 264.531);
-  --primary-foreground: oklch(70.7% 0.022 261.325);
-  --secondary: oklch(87.2% 0.01 258.338);
-  --secondary-foreground: oklch(0.25 0 0);
-  --muted: oklch(0.95 0 0);
-  --muted-foreground: oklch(0.5 0 0);
-  --accent: oklch(55.1% 0.027 264.364);
-  --accent-foreground: oklch(1 0 0);
-  --destructive: oklch(0.6 0.2 15);
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.9 0 0);
-  --input: oklch(0.9 0 0);
-  --ring: oklch(0.35 0.15 250);
-  --radius: 1rem;
-  --spacing: 0.3rem;
-  --font-sans: Hubot Sans;
-  --font-serif: Playfair Display;
-  --font-mono: "Roboto Mono";
+/* Visible focus ring on every interactive element.
+   Deliberately unlayered: several shadcn components apply Tailwind's
+   `outline-none` utility, and utilities beat anything inside @layer base,
+   so a focus ring declared there never actually paints. */
+:focus-visible {
+  outline: 3px solid var(--aam-focus) !important;
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* Sensory rule: animation rests still until the user asks for it. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 @theme {
@@ -59,6 +205,17 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  /* Brand colours available as Tailwind utilities where needed */
+  --color-aam-cream: var(--aam-cream);
+  --color-aam-teal: var(--aam-teal);
+  --color-aam-orange: var(--aam-orange);
+  --color-aam-dusty: var(--aam-dusty);
+  --color-aam-mint: var(--aam-mint);
+  --color-aam-sage: var(--aam-sage);
+
+  --font-sans: "Atkinson Hyperlegible", Verdana, system-ui, sans-serif;
+  --font-display: "Poppins", "Atkinson Hyperlegible", system-ui, sans-serif;
 
   --radius-sm: calc(var(--radius) * 0.5);
   --radius-md: var(--radius);

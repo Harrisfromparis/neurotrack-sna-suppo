@@ -1,22 +1,41 @@
-import { useState, useEffect, useCallback } from 'react'
-import { User, AuthSession, GDPRConsent, PrivacySettings, DataExportRequest, DataDeletionRequest } from '@/lib/types'
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
+import { User, AuthSession, GDPRConsent, PrivacySettings, DataExportRequest, DataDeletionRequest, Permission } from '@/lib/types'
 import { authService } from '@/lib/auth'
 import { gdprService } from '@/lib/gdpr'
 
+interface AuthContextValue {
+  user: User | null
+  session: AuthSession | null
+  /** True only during the initial session check on app start */
+  isInitializing: boolean
+  /** True while a sign-in, sign-up or sign-out request is in flight */
+  isLoading: boolean
+  isAuthenticated: boolean
+  login: (email: string, password: string) => Promise<{ user: User; session: AuthSession }>
+  register: (email: string, password: string, name: string, role?: User['role']) => Promise<{ user: User; session: AuthSession }>
+  logout: () => Promise<void>
+  hasPermission: (resource: Permission['resource'], action: Permission['actions'][number]) => boolean
+  updateGDPRConsent: (consent: Partial<GDPRConsent>) => Promise<void>
+}
+
+const AuthContext = createContext<AuthContextValue | null>(null)
+
 /**
- * Hook for authentication state and actions
+ * Provides shared authentication state to the whole app. Auth state has to live
+ * in a single provider: with per-hook useState, a sign-in from LoginForm never
+ * reaches App's isAuthenticated, so the dashboard never opens.
  */
-export function useAuth() {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<AuthSession | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isInitializing, setIsInitializing] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   // Check authentication status on mount
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        setIsLoading(true)
         const authenticated = await authService.isAuthenticated()
         setIsAuthenticated(authenticated)
         
@@ -30,7 +49,7 @@ export function useAuth() {
         setUser(null)
         setSession(null)
       } finally {
-        setIsLoading(false)
+        setIsInitializing(false)
       }
     }
 
@@ -89,9 +108,9 @@ export function useAuth() {
     }
   }, [])
 
-  const hasPermission = useCallback((resource: string, action: string) => {
-    return authService.hasPermission(resource as any, action as any)
-  }, [])
+  const hasPermission = useCallback((resource: Permission['resource'], action: Permission['actions'][number]) => {
+    return authService.hasPermission(resource, action)
+  }, [user])  // eslint-disable-line react-hooks/exhaustive-deps -- authService holds the state; recompute when the signed-in user changes
 
   const updateGDPRConsent = useCallback(async (consent: Partial<GDPRConsent>) => {
     if (!user) throw new Error('Not authenticated')
@@ -104,9 +123,10 @@ export function useAuth() {
     }
   }, [user])
 
-  return {
+  const value: AuthContextValue = {
     user,
     session,
+    isInitializing,
     isLoading,
     isAuthenticated,
     login,
@@ -115,6 +135,19 @@ export function useAuth() {
     hasPermission,
     updateGDPRConsent
   }
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}
+
+/**
+ * Hook for authentication state and actions (shared via AuthProvider)
+ */
+export function useAuth(): AuthContextValue {
+  const context = useContext(AuthContext)
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider')
+  }
+  return context
 }
 
 /**
@@ -264,10 +297,10 @@ export function useGDPR() {
 export function usePermissions() {
   const { user, hasPermission } = useAuth()
 
-  const canCreate = useCallback((resource: string) => hasPermission(resource, 'create'), [hasPermission])
-  const canRead = useCallback((resource: string) => hasPermission(resource, 'read'), [hasPermission])
-  const canUpdate = useCallback((resource: string) => hasPermission(resource, 'update'), [hasPermission])
-  const canDelete = useCallback((resource: string) => hasPermission(resource, 'delete'), [hasPermission])
+  const canCreate = useCallback((resource: Permission['resource']) => hasPermission(resource, 'create'), [hasPermission])
+  const canRead = useCallback((resource: Permission['resource']) => hasPermission(resource, 'read'), [hasPermission])
+  const canUpdate = useCallback((resource: Permission['resource']) => hasPermission(resource, 'update'), [hasPermission])
+  const canDelete = useCallback((resource: Permission['resource']) => hasPermission(resource, 'delete'), [hasPermission])
 
   const isAdmin = user?.role === 'administrator'
   const isTeacher = user?.role === 'teacher'

@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Calendar, Clock, MapPin, User, Plus, Edit, Trash2 } from '@phosphor-icons/react'
+import { Calendar, Clock, MapPin, User, Plus, PencilSimple, Trash } from '@phosphor-icons/react'
 import { AddScheduleBlockDialog } from './AddScheduleBlockDialog'
 import { EditScheduleBlockDialog } from './EditScheduleBlockDialog'
 import { format, parseISO } from 'date-fns'
@@ -70,9 +70,9 @@ export function ScheduleView({ students, selectedStudentId, onSelectStudent }: S
       )
       
       await setStudents(updatedStudents)
-      toast.success('Schedule block deleted successfully')
+      toast.success('Removed from the schedule')
     } catch (error) {
-      toast.error('Failed to delete schedule block')
+      toast.error('Could not remove that from the schedule')
     }
   }
 
@@ -228,14 +228,14 @@ export function ScheduleView({ students, selectedStudentId, onSelectStudent }: S
                           size="sm"
                           onClick={() => setEditingBlock(block)}
                         >
-                          <Edit className="h-4 w-4" />
+                          <PencilSimple className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => deleteScheduleBlock(block.id)}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
@@ -245,11 +245,11 @@ export function ScheduleView({ students, selectedStudentId, onSelectStudent }: S
             </Card>
           </div>
 
-          {/* Schedule Summary */}
+          {/* Schedule at a glance */}
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Schedule Summary</CardTitle>
+                <CardTitle>Schedule at a glance</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="text-sm">

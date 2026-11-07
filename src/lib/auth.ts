@@ -1,9 +1,51 @@
 import { User, AuthSession, Permission, GDPRConsent, DataProcessingPurpose } from './types'
 import { loggingService } from './logging'
 
-// spark is available as a global variable from @github/spark/spark
-declare global {
-  const spark: any
+const PBKDF2_ITERATIONS = 210000
+const PBKDF2_HASH_PREFIX = 'pbkdf2'
+
+function toBase64(bytes: Uint8Array): string {
+  return btoa(String.fromCharCode(...bytes))
+}
+
+function fromBase64(value: string): Uint8Array {
+  return Uint8Array.from(atob(value), c => c.charCodeAt(0))
+}
+
+/**
+ * Derive a PBKDF2-SHA256 hash, stored as "pbkdf2$<iterations>$<saltB64>$<hashB64>".
+ * These records cover children's care data, so passwords are hashed with a
+ * per-user random salt rather than reversibly encoded.
+ */
+async function hashPassword(password: string, salt?: Uint8Array, iterations = PBKDF2_ITERATIONS): Promise<string> {
+  const saltBytes = salt ?? crypto.getRandomValues(new Uint8Array(16))
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(password),
+    'PBKDF2',
+    false,
+    ['deriveBits']
+  )
+  const derived = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt: saltBytes, iterations, hash: 'SHA-256' },
+    keyMaterial,
+    256
+  )
+  return [PBKDF2_HASH_PREFIX, iterations, toBase64(saltBytes), toBase64(new Uint8Array(derived))].join('$')
+}
+
+async function verifyPassword(password: string, stored: string): Promise<boolean> {
+  const [prefix, iterations, saltB64] = stored.split('$')
+  if (prefix !== PBKDF2_HASH_PREFIX) {
+    // Legacy format: base64-encoded plaintext, from before hashing was introduced
+    return stored === btoa(password)
+  }
+  const recomputed = await hashPassword(password, fromBase64(saltB64), Number(iterations))
+  return recomputed === stored
+}
+
+function isLegacyPasswordFormat(stored: string): boolean {
+  return !stored.startsWith(`${PBKDF2_HASH_PREFIX}$`)
 }
 
 class AuthService {
@@ -135,8 +177,7 @@ class AuthService {
         gdprConsent: this.createDefaultGDPRConsent(userId)
       }
 
-      // Hash password (in a real app, use proper password hashing)
-      const hashedPassword = btoa(password) // Basic encoding - use bcrypt in production
+      const hashedPassword = await hashPassword(password)
       
       // Store user and password
       const updatedUsers = [...existingUsers, newUser]
@@ -175,14 +216,18 @@ class AuthService {
 
       // Verify password
       const storedPassword = await spark.kv.get<string>(`password_${user.id}`)
-      const hashedPassword = btoa(password)
-      
-      if (storedPassword !== hashedPassword) {
+
+      if (!storedPassword || !(await verifyPassword(password, storedPassword))) {
         loggingService.logSystemEvent('warn', 'security', 'Failed login attempt', {
           email,
           userId: user.id
         })
         throw new Error('Invalid email or password')
+      }
+
+      // Transparently upgrade passwords still stored in the legacy format
+      if (isLegacyPasswordFormat(storedPassword)) {
+        await spark.kv.set(`password_${user.id}`, await hashPassword(password))
       }
 
       // Create session

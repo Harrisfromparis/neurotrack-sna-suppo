@@ -16,9 +16,9 @@ import {
   Clock, 
   Check, 
   X, 
-  AlertTriangle,
+  Warning,
   FileText,
-  Settings,
+  Gear,
   Eye
 } from '@phosphor-icons/react'
 import { toast } from 'sonner'
@@ -56,9 +56,9 @@ export function PrivacySettings() {
         allowMarketing: localSettings.allowMarketing,
         shareWithPartners: localSettings.shareWithPartners
       })
-      toast.success('Privacy settings updated successfully')
+      toast.success('Privacy settings saved')
     } catch (error) {
-      toast.error('Failed to update privacy settings')
+      toast.error('Could not save your privacy settings')
     }
   }
 
@@ -77,7 +77,7 @@ export function PrivacySettings() {
       
       toast.success('Consent preferences updated')
     } catch (error) {
-      toast.error('Failed to update consent preferences')
+      toast.error('Could not save your consent choices')
     }
   }
 
@@ -99,26 +99,26 @@ export function PrivacySettings() {
       setDeletionReason('')
       refreshRequests()
     } catch (error) {
-      toast.error('Failed to request data deletion')
+      toast.error('Could not send that deletion request')
     }
   }
 
   const handleCancelDeletion = async (requestId: string) => {
     try {
       await cancelDataDeletion(requestId)
-      toast.success('Data deletion request cancelled')
+      toast.success('Deletion request cancelled')
       refreshRequests()
     } catch (error) {
-      toast.error('Failed to cancel deletion request')
+      toast.error('Could not cancel that deletion request')
     }
   }
 
   const handleDownloadExport = async (exportKey: string) => {
     try {
       await downloadExportedData(exportKey)
-      toast.success('Data export downloaded')
+      toast.success('Your data has downloaded')
     } catch (error) {
-      toast.error('Failed to download export data')
+      toast.error('Could not download your data')
     }
   }
 
@@ -127,7 +127,7 @@ export function PrivacySettings() {
       case 'pending':
         return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" />Pending</Badge>
       case 'processing':
-        return <Badge variant="secondary"><Settings className="h-3 w-3 mr-1" />Processing</Badge>
+        return <Badge variant="secondary"><Gear className="h-3 w-3 mr-1" />Processing</Badge>
       case 'completed':
         return <Badge variant="default"><Check className="h-3 w-3 mr-1" />Completed</Badge>
       case 'failed':
@@ -160,7 +160,7 @@ export function PrivacySettings() {
         <TabsContent value="consent">
           <Card>
             <CardHeader>
-              <CardTitle>Data Processing Consent</CardTitle>
+              <CardTitle>Consent to process data</CardTitle>
               <CardDescription>
                 Control how your data is processed according to GDPR regulations
               </CardDescription>
@@ -208,7 +208,7 @@ export function PrivacySettings() {
         <TabsContent value="settings">
           <Card>
             <CardHeader>
-              <CardTitle>Privacy Preferences</CardTitle>
+              <CardTitle>Privacy preferences</CardTitle>
               <CardDescription>
                 Configure your privacy and data retention preferences
               </CardDescription>
@@ -356,7 +356,7 @@ export function PrivacySettings() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <Alert>
-                  <AlertTriangle className="h-4 w-4" />
+                  <Warning className="h-4 w-4" />
                   <AlertDescription>
                     <strong>Warning:</strong> Data deletion is permanent and cannot be undone. 
                     You have 30 days to cancel the request.

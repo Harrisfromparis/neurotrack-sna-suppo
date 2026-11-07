@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useKV } from '@github/spark/hooks'
 import { Student, DailySchedule } from '@/lib/types'
+import { CLASS_GROUPS } from '@/lib/schoolTerms'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,7 +19,7 @@ interface AddStudentDialogProps {
 }
 
 export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps) {
-  const [students, setStudents] = useKV<Student[]>('students', [])
+  const [students = [], setStudents] = useKV<Student[]>('students', [])
   const [formData, setFormData] = useState({
     name: '',
     age: '',
@@ -35,7 +36,7 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps) 
     e.preventDefault()
     
     if (!formData.name || !formData.age || !formData.grade) {
-      toast.error('Please fill in all required fields')
+      toast.error('Some required fields are still empty')
       return
     }
 
@@ -73,8 +74,8 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps) 
         createdAt: new Date().toISOString()
       }
 
-      await setStudents(current => [...current, newStudent])
-      toast.success(`${newStudent.name} has been added successfully`)
+      await setStudents(current => [...(current ?? []), newStudent])
+      toast.success(`${newStudent.name} has been added`)
       
       // Reset form
       setFormData({
@@ -110,21 +111,21 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps) 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add New Student</DialogTitle>
+          <DialogTitle>Add a student</DialogTitle>
           <DialogDescription>
-            Create a new student profile for care tracking and management
+            Set up a profile so their day, their supports and their progress stay in one place.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Student Name *</Label>
+              <Label htmlFor="name">Student name *</Label>
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="Enter student's full name"
+                placeholder="First name and surname"
                 required
               />
             </div>
@@ -144,34 +145,22 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps) 
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="grade">Grade/Class *</Label>
+            <Label htmlFor="grade">Class or year group *</Label>
             <Select onValueChange={(value) => setFormData(prev => ({ ...prev, grade: value }))}>
               <SelectTrigger>
-                <SelectValue placeholder="Select grade or class" />
+                <SelectValue placeholder="Choose a class or year group" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="pre-k">Pre-K</SelectItem>
-                <SelectItem value="kindergarten">Kindergarten</SelectItem>
-                <SelectItem value="1st">1st Grade</SelectItem>
-                <SelectItem value="2nd">2nd Grade</SelectItem>
-                <SelectItem value="3rd">3rd Grade</SelectItem>
-                <SelectItem value="4th">4th Grade</SelectItem>
-                <SelectItem value="5th">5th Grade</SelectItem>
-                <SelectItem value="6th">6th Grade</SelectItem>
-                <SelectItem value="7th">7th Grade</SelectItem>
-                <SelectItem value="8th">8th Grade</SelectItem>
-                <SelectItem value="9th">9th Grade</SelectItem>
-                <SelectItem value="10th">10th Grade</SelectItem>
-                <SelectItem value="11th">11th Grade</SelectItem>
-                <SelectItem value="12th">12th Grade</SelectItem>
-                <SelectItem value="special-ed">Special Education Class</SelectItem>
+                {CLASS_GROUPS.map(group => (
+                  <SelectItem key={group.value} value={group.value}>{group.label}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Support Needs</CardTitle>
+              <CardTitle className="text-lg">Support needs</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex gap-2">
@@ -207,12 +196,12 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps) 
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Emergency Contact</CardTitle>
+              <CardTitle className="text-lg">Emergency contact</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="contactName">Contact Name</Label>
+                  <Label htmlFor="contactName">Contact name</Label>
                   <Input
                     id="contactName"
                     value={formData.emergencyContactName}
@@ -221,13 +210,13 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps) 
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="contactPhone">Phone Number</Label>
+                  <Label htmlFor="contactPhone">Phone number</Label>
                   <Input
                     id="contactPhone"
                     type="tel"
                     value={formData.emergencyContactPhone}
                     onChange={(e) => setFormData(prev => ({ ...prev, emergencyContactPhone: e.target.value }))}
-                    placeholder="(555) 123-4567"
+                    placeholder="087 123 4567"
                   />
                 </div>
               </div>
@@ -235,7 +224,7 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps) 
                 <Label htmlFor="relationship">Relationship</Label>
                 <Select onValueChange={(value) => setFormData(prev => ({ ...prev, emergencyContactRelationship: value }))}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select relationship" />
+                    <SelectValue placeholder="Choose a relationship" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="parent">Parent</SelectItem>
@@ -250,12 +239,12 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps) 
           </Card>
 
           <div className="space-y-2">
-            <Label htmlFor="careNotes">Care Notes</Label>
+            <Label htmlFor="careNotes">Care notes</Label>
             <Textarea
               id="careNotes"
               value={formData.careNotes}
               onChange={(e) => setFormData(prev => ({ ...prev, careNotes: e.target.value }))}
-              placeholder="Important care information, medical notes, behavioral strategies..."
+              placeholder="What helps, what to watch for, and anything a substitute would need to know"
               rows={4}
             />
           </div>

@@ -134,7 +134,7 @@ class LoggingService {
       userId: this.currentSession?.userId,
       sessionId: this.currentSession?.id,
       details,
-      source: 'NeuroSupport-App'
+      source: 'Student-Support-Tracker'
     }
 
     this.logs.push(log)
@@ -209,12 +209,20 @@ class LoggingService {
       if (!navigator.geolocation) return undefined
       
       return new Promise((resolve) => {
+        // getCurrentPosition never calls back while the permission prompt is
+        // unanswered (its own timeout only starts once permission is granted),
+        // and login awaits this - so always resolve on a hard deadline.
+        const fallback = setTimeout(() => resolve(undefined), 3000)
         navigator.geolocation.getCurrentPosition(
           (position) => {
+            clearTimeout(fallback)
             resolve(`${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`)
           },
-          () => resolve(undefined),
-          { timeout: 5000, enableHighAccuracy: false }
+          () => {
+            clearTimeout(fallback)
+            resolve(undefined)
+          },
+          { timeout: 2500, enableHighAccuracy: false }
         )
       })
     } catch {

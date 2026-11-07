@@ -7,7 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Shield, User, Lock, Mail, Eye, EyeSlash } from '@phosphor-icons/react'
+import { User, Lock, Envelope, Eye, EyeSlash } from '@phosphor-icons/react'
+import { Logo } from '@/components/brand/Logo'
 import type { User as UserType } from '@/lib/types'
 
 interface LoginFormProps {
@@ -40,7 +41,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     setError('')
 
     if (!loginData.email || !loginData.password) {
-      setError('Please fill in all fields')
+      setError('Please fill in every field')
       return
     }
 
@@ -48,7 +49,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       await login(loginData.email, loginData.password)
       onSuccess?.()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed')
+      setError(err instanceof Error ? err.message : 'That sign-in did not work. Please try again.')
     }
   }
 
@@ -57,17 +58,17 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     setError('')
 
     if (!registerData.name || !registerData.email || !registerData.password) {
-      setError('Please fill in all fields')
+      setError('Please fill in every field')
       return
     }
 
     if (registerData.password !== registerData.confirmPassword) {
-      setError('Passwords do not match')
+      setError('The two passwords are not the same')
       return
     }
 
     if (registerData.password.length < 8) {
-      setError('Password must be at least 8 characters long')
+      setError('Your password needs to be at least 8 characters')
       return
     }
 
@@ -75,28 +76,28 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       await register(registerData.email, registerData.password, registerData.name, registerData.role)
       onSuccess?.()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Registration failed')
+      setError(err instanceof Error ? err.message : 'That did not work. Please try again.')
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <Shield className="h-12 w-12 text-primary" />
+          <div className="flex justify-center">
+            <Logo width={160} />
           </div>
-          <CardTitle className="text-2xl font-bold">NeuroSupport</CardTitle>
+          <CardTitle className="text-2xl">Student Support Tracker</CardTitle>
           <CardDescription>
-            Secure access to student care management
+            Change the environment, not the child.
           </CardDescription>
         </CardHeader>
 
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">Sign In</TabsTrigger>
-              <TabsTrigger value="register">Sign Up</TabsTrigger>
+              <TabsTrigger value="login">Sign in</TabsTrigger>
+              <TabsTrigger value="register">Set up an account</TabsTrigger>
             </TabsList>
 
             {error && (
@@ -110,11 +111,11 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
                 <div className="space-y-2">
                   <Label htmlFor="login-email">Email</Label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Envelope className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="login-email"
                       type="email"
-                      placeholder="Enter your email"
+                      placeholder="you@yourschool.ie"
                       value={loginData.email}
                       onChange={(e) => setLoginData(prev => ({ ...prev, email: e.target.value }))}
                       className="pl-10"
@@ -130,7 +131,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
                     <Input
                       id="login-password"
                       type={showPassword ? "text" : "password"}
-                      placeholder="Enter your password"
+                      placeholder="Your password"
                       value={loginData.password}
                       onChange={(e) => setLoginData(prev => ({ ...prev, password: e.target.value }))}
                       className="pl-10 pr-10"
@@ -140,7 +141,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      className="absolute right-0 top-0 h-full min-h-11 min-w-11 px-3 py-2 hover:bg-transparent"
                       onClick={() => setShowPassword(!showPassword)}
                     >
                       {showPassword ? (
@@ -152,8 +153,8 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? 'Signing in...' : 'Sign In'}
+                <Button type="submit" className="w-full min-h-11" disabled={isLoading}>
+                  {isLoading ? 'Signing in' : 'Sign in'}
                 </Button>
               </form>
             </TabsContent>
@@ -161,13 +162,13 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
             <TabsContent value="register">
               <form onSubmit={handleRegister} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="register-name">Full Name</Label>
+                  <Label htmlFor="register-name">Your name</Label>
                   <div className="relative">
                     <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="register-name"
                       type="text"
-                      placeholder="Enter your full name"
+                      placeholder="First name and surname"
                       value={registerData.name}
                       onChange={(e) => setRegisterData(prev => ({ ...prev, name: e.target.value }))}
                       className="pl-10"
@@ -179,11 +180,11 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
                 <div className="space-y-2">
                   <Label htmlFor="register-email">Email</Label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Envelope className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="register-email"
                       type="email"
-                      placeholder="Enter your email"
+                      placeholder="you@yourschool.ie"
                       value={registerData.email}
                       onChange={(e) => setRegisterData(prev => ({ ...prev, email: e.target.value }))}
                       className="pl-10"
@@ -193,19 +194,19 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="register-role">Role</Label>
+                  <Label htmlFor="register-role">Your role</Label>
                   <Select 
                     value={registerData.role} 
                     onValueChange={(value) => setRegisterData(prev => ({ ...prev, role: value as UserType['role'] }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select your role" />
+                      <SelectValue placeholder="Choose your role" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="sna">Special Needs Assistant (SNA)</SelectItem>
                       <SelectItem value="teacher">Teacher</SelectItem>
                       <SelectItem value="administrator">Administrator</SelectItem>
-                      <SelectItem value="substitute">Substitute Staff</SelectItem>
+                      <SelectItem value="substitute">Substitute staff</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -217,7 +218,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
                     <Input
                       id="register-password"
                       type={showPassword ? "text" : "password"}
-                      placeholder="Create a password"
+                      placeholder="At least 8 characters"
                       value={registerData.password}
                       onChange={(e) => setRegisterData(prev => ({ ...prev, password: e.target.value }))}
                       className="pl-10 pr-10"
@@ -228,7 +229,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      className="absolute right-0 top-0 h-full min-h-11 min-w-11 px-3 py-2 hover:bg-transparent"
                       onClick={() => setShowPassword(!showPassword)}
                     >
                       {showPassword ? (
@@ -241,13 +242,13 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="register-confirm-password">Confirm Password</Label>
+                  <Label htmlFor="register-confirm-password">Type your password again</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="register-confirm-password"
                       type={showPassword ? "text" : "password"}
-                      placeholder="Confirm your password"
+                      placeholder="The same password again"
                       value={registerData.confirmPassword}
                       onChange={(e) => setRegisterData(prev => ({ ...prev, confirmPassword: e.target.value }))}
                       className="pl-10"
@@ -256,15 +257,18 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? 'Creating account...' : 'Create Account'}
+                <Button type="submit" className="w-full min-h-11" disabled={isLoading}>
+                  {isLoading ? 'Setting up your account' : 'Set up my account'}
                 </Button>
               </form>
             </TabsContent>
           </Tabs>
 
           <div className="mt-6 text-center text-sm text-muted-foreground">
-            <p>By signing in, you agree to our privacy policy and GDPR compliance measures.</p>
+            <p>
+              Signing in means you accept how this tracker handles student data, set out in
+              the privacy settings and under the General Data Protection Regulation (GDPR).
+            </p>
           </div>
         </CardContent>
       </Card>

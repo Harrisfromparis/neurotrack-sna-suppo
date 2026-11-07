@@ -1,10 +1,11 @@
 import { Student, BehaviorLog, ActivityLog } from '@/lib/types'
+import { classLabel } from '@/lib/schoolTerms'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Progress } from '@/components/ui/progress'
-import { User, Clock, TrendingUp, Activity, Phone } from '@phosphor-icons/react'
+import { User, Clock, TrendUp, Activity, Phone } from '@phosphor-icons/react'
 
 interface StudentDashboardProps {
   students: Student[]
@@ -55,8 +56,8 @@ export function StudentDashboard({
     return (
       <div className="grid gap-6">
         <div>
-          <h2 className="text-3xl font-bold mb-2">Student Overview</h2>
-          <p className="text-muted-foreground">Select a student to view their detailed information</p>
+          <h2 className="text-3xl font-bold mb-2">Students</h2>
+          <p className="text-muted-foreground">Choose a student to see their day in detail</p>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -80,19 +81,19 @@ export function StudentDashboard({
                     <div className="flex-1 min-w-0">
                       <CardTitle className="text-lg truncate">{student.name}</CardTitle>
                       <CardDescription>
-                        Age {student.age} • {student.grade}
+                        Age {student.age} • {classLabel(student.grade)}
                       </CardDescription>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Today's Logs</span>
+                    <span className="text-sm text-muted-foreground">Notes today</span>
                     <Badge variant="secondary">{behaviorSummary.todayCount}</Badge>
                   </div>
                   
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Weekly Positive</span>
+                    <span className="text-sm text-muted-foreground">Going well this week</span>
                     <span className="text-sm font-medium">
                       {behaviorSummary.positiveRatio.toFixed(0)}%
                     </span>
@@ -138,7 +139,7 @@ export function StudentDashboard({
           <div>
             <h2 className="text-3xl font-bold">{selectedStudent.name}</h2>
             <p className="text-muted-foreground">
-              Age {selectedStudent.age} • {selectedStudent.grade}
+              Age {selectedStudent.age} • {classLabel(selectedStudent.grade)}
             </p>
           </div>
         </div>
@@ -150,8 +151,8 @@ export function StudentDashboard({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today's Behavior Logs</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Behaviour notes today</CardTitle>
+            <TrendUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{behaviorSummary.todayCount}</div>
@@ -160,8 +161,8 @@ export function StudentDashboard({
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Weekly Positive Ratio</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Going well this week Ratio</CardTitle>
+            <TrendUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{behaviorSummary.positiveRatio.toFixed(0)}%</div>
@@ -181,7 +182,7 @@ export function StudentDashboard({
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Emergency Contact</CardTitle>
+            <CardTitle className="text-sm font-medium">Emergency contact</CardTitle>
             <Phone className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -204,7 +205,7 @@ export function StudentDashboard({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Support Needs</CardTitle>
+            <CardTitle>Support needs</CardTitle>
             <CardDescription>Current accommodations and support requirements</CardDescription>
           </CardHeader>
           <CardContent>
@@ -224,8 +225,8 @@ export function StudentDashboard({
 
         <Card>
           <CardHeader>
-            <CardTitle>IEP Goals Progress</CardTitle>
-            <CardDescription>Current educational and behavioral objectives</CardDescription>
+            <CardTitle>Progress on Individual Education Plan (IEP) goals</CardTitle>
+            <CardDescription>Current learning and behaviour goals</CardDescription>
           </CardHeader>
           <CardContent>
             {selectedStudent.iepGoals.length > 0 ? (
@@ -251,7 +252,7 @@ export function StudentDashboard({
       {selectedStudent.careNotes && (
         <Card>
           <CardHeader>
-            <CardTitle>Care Notes</CardTitle>
+            <CardTitle>Care notes</CardTitle>
             <CardDescription>Important information and strategies</CardDescription>
           </CardHeader>
           <CardContent>

@@ -134,7 +134,7 @@ export function EditScheduleBlockDialog({ open, onOpenChange, block, studentId, 
     if (!selectedStudent || !selectedStudent.schedule) return
 
     if (!formData.title || !formData.startTime || !formData.endTime || !formData.type || !formData.requiredSupport) {
-      toast.error('Please fill in all required fields')
+      toast.error('Some required fields are still empty')
       return
     }
 
@@ -153,7 +153,7 @@ export function EditScheduleBlockDialog({ open, onOpenChange, block, studentId, 
         startTime: formData.startTime,
         endTime: formData.endTime,
         type: formData.type as any,
-        location: formData.location || undefined,
+        location: formData.location,
         instructor: formData.instructor || undefined,
         description: formData.description || undefined,
         objectives: formData.objectives.length > 0 ? formData.objectives : undefined,
@@ -183,11 +183,11 @@ export function EditScheduleBlockDialog({ open, onOpenChange, block, studentId, 
       )
 
       await setStudents(updatedStudents)
-      toast.success('Schedule block updated successfully')
+      toast.success('Schedule updated')
       onOpenChange(false)
     } catch (error) {
       console.error('Error updating schedule block:', error)
-      toast.error('Failed to update schedule block')
+      toast.error('Could not update the schedule')
     } finally {
       setIsLoading(false)
     }
@@ -197,14 +197,14 @@ export function EditScheduleBlockDialog({ open, onOpenChange, block, studentId, 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Schedule Block</DialogTitle>
+          <DialogTitle>Edit this block</DialogTitle>
           <DialogDescription>
             Update the schedule block for {selectedStudent?.name}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Information */}
+          {/* The basics */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="title">Title *</Label>

@@ -14,6 +14,7 @@ import { Plus, Activity, Clock, Users, CheckCircle, XCircle, Play, Pause, StopCi
 import { toast } from 'sonner'
 import { useLogging, useFormTracking } from '@/hooks/useLogging'
 import { getCurrentSessionId } from '@/lib/logging'
+import { classLabel } from '@/lib/schoolTerms'
 
 interface ActivityLoggingProps {
   students: Student[]
@@ -22,9 +23,9 @@ interface ActivityLoggingProps {
 }
 
 export function ActivityLogging({ students, selectedStudentId, onSelectStudent }: ActivityLoggingProps) {
-  const [activityLogs, setActivityLogs] = useKV<ActivityLog[]>('activity-logs', [])
+  const [activityLogs = [], setActivityLogs] = useKV<ActivityLog[]>('activity-logs', [])
   const [showAddLog, setShowAddLog] = useState(false)
-  const [activeActivities, setActiveActivities] = useKV<Record<string, ActivityLog>>('active-activities', {})
+  const [activeActivities = {}, setActiveActivities] = useKV<Record<string, ActivityLog>>('active-activities', {})
   const { logAction, logError } = useLogging()
   const { trackFormStart, trackFieldInteraction, trackFormSubmit, trackValidationError } = useFormTracking('activity-log-form')
   
@@ -116,15 +117,15 @@ export function ActivityLogging({ students, selectedStudentId, onSelectStudent }
         activityType: activity.type,
         location: activity.location,
         supportLevel: activity.supportLevel,
-        hasObjectives: activity.objectives.length > 0
+        hasObjectives: (activity.objectives?.length ?? 0) > 0
       })
 
-      toast.success('Activity started and being tracked')
+      toast.success('Activity started')
       
       setShowAddLog(false)
     } catch (error) {
       logError('activity_start', error?.toString() || 'Unknown error', selectedStudentId)
-      toast.error('Failed to start activity')
+      toast.error('Could not start that activity')
     }
   }
 
@@ -145,7 +146,7 @@ export function ActivityLogging({ students, selectedStudentId, onSelectStudent }
       }
 
       // Add to permanent logs
-      setActivityLogs(current => [...current, completedActivity])
+      setActivityLogs(current => [...(current ?? []), completedActivity])
       
       // Remove from active activities
       setActiveActivities(current => {
@@ -164,7 +165,7 @@ export function ActivityLogging({ students, selectedStudentId, onSelectStudent }
       toast.success(`Activity ${success ? 'completed' : 'cancelled'}`)
     } catch (error) {
       logError('activity_end', error?.toString() || 'Unknown error', selectedStudentId)
-      toast.error('Failed to end activity')
+      toast.error('Could not close that activity')
     }
   }
 
@@ -173,12 +174,12 @@ export function ActivityLogging({ students, selectedStudentId, onSelectStudent }
     
     // Validation
     if (!newActivity.studentId || !newActivity.details) {
-      const missingFields = []
+      const missingFields: string[] = []
       if (!newActivity.studentId) missingFields.push('student')
       if (!newActivity.details) missingFields.push('details')
       
       trackValidationError('required-fields', `Missing: ${missingFields.join(', ')}`)
-      toast.error('Please fill in required fields')
+      toast.error('Some required fields are still empty')
       return
     }
 
@@ -199,14 +200,14 @@ export function ActivityLogging({ students, selectedStudentId, onSelectStudent }
         status: 'completed'
       }
 
-      setActivityLogs(current => [...current, activity])
+      setActivityLogs(current => [...(current ?? []), activity])
       
       logAction('activity_logged', selectedStudentId, {
         activityType: activity.type,
         studentResponse: activity.studentResponse,
         engagementLevel: activity.engagementLevel,
         supportLevel: activity.supportLevel,
-        hasAdaptations: activity.adaptationsUsed.length > 0
+        hasAdaptations: (activity.adaptationsUsed?.length ?? 0) > 0
       })
       
       trackFormSubmit({
@@ -215,7 +216,7 @@ export function ActivityLogging({ students, selectedStudentId, onSelectStudent }
         supportLevel: activity.supportLevel
       }, true)
       
-      toast.success('Activity logged successfully')
+      toast.success('Activity saved')
       
       // Reset form
       setNewActivity({
@@ -237,7 +238,7 @@ export function ActivityLogging({ students, selectedStudentId, onSelectStudent }
     } catch (error) {
       logError('activity_logging', error?.toString() || 'Unknown error', selectedStudentId)
       trackFormSubmit({}, false)
-      toast.error('Failed to log activity')
+      toast.error('Could not save that activity')
     }
   }
 
@@ -292,7 +293,7 @@ export function ActivityLogging({ students, selectedStudentId, onSelectStudent }
             >
               <CardHeader>
                 <CardTitle className="text-lg">{student.name}</CardTitle>
-                <CardDescription>Age {student.age} • {student.grade}</CardDescription>
+                <CardDescription>Age {student.age} • {classLabel(student.grade)}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="text-sm text-muted-foreground">
@@ -324,21 +325,21 @@ export function ActivityLogging({ students, selectedStudentId, onSelectStudent }
             <DialogTrigger asChild>
               <Button className="flex items-center gap-2">
                 <Plus className="h-4 w-4" />
-                Log Activity
+                Record an activity
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Log Activity</DialogTitle>
+                <DialogTitle>Record an activity</DialogTitle>
                 <DialogDescription>
                   Record comprehensive activity information for {selectedStudent.name}
                 </DialogDescription>
               </DialogHeader>
               
               <div className="space-y-6">
-                {/* Basic Information */}
+                {/* The basics */}
                 <div>
-                  <h3 className="text-lg font-semibold mb-3">Activity Details</h3>
+                  <h3 className="text-lg font-semibold mb-3">Activity details</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Activity Type *</Label>
@@ -379,7 +380,7 @@ export function ActivityLogging({ students, selectedStudentId, onSelectStudent }
                   </div>
 
                   <div className="space-y-2 mt-4">
-                    <Label>Activity Details *</Label>
+                    <Label>Activity details *</Label>
                     <Textarea
                       value={newActivity.details}
                       onChange={(e) => {
@@ -394,7 +395,7 @@ export function ActivityLogging({ students, selectedStudentId, onSelectStudent }
 
                 {/* Performance Metrics */}
                 <div>
-                  <h3 className="text-lg font-semibold mb-3">Performance & Response</h3>
+                  <h3 className="text-lg font-semibold mb-3">How it went</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label>Student Response</Label>
@@ -587,7 +588,7 @@ export function ActivityLogging({ students, selectedStudentId, onSelectStudent }
                     Cancel
                   </Button>
                   <Button onClick={handleLogCompletedActivity}>
-                    Log Activity
+                    Record an activity
                   </Button>
                 </div>
               </div>
@@ -685,10 +686,10 @@ export function ActivityLogging({ students, selectedStudentId, onSelectStudent }
         </Card>
       </div>
 
-      {/* Recent Activities */}
+      {/* Recent activities */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Activities</CardTitle>
+          <CardTitle>Recent activities</CardTitle>
           <CardDescription>Latest activity logs and progress tracking</CardDescription>
         </CardHeader>
         <CardContent>
@@ -725,9 +726,9 @@ export function ActivityLogging({ students, selectedStudentId, onSelectStudent }
                       <p className="text-muted-foreground">{log.details}</p>
                     </div>
 
-                    {(log.objectives?.length > 0 || log.adaptationsUsed?.length > 0) && (
+                    {((log.objectives?.length ?? 0) > 0 || (log.adaptationsUsed?.length ?? 0) > 0) && (
                       <div className="pt-2 border-t">
-                        {log.objectives?.length > 0 && (
+                        {log.objectives && log.objectives.length > 0 && (
                           <div className="mb-2">
                             <span className="font-medium text-sm">Objectives:</span>
                             <div className="flex flex-wrap gap-1 mt-1">
@@ -739,7 +740,7 @@ export function ActivityLogging({ students, selectedStudentId, onSelectStudent }
                             </div>
                           </div>
                         )}
-                        {log.adaptationsUsed?.length > 0 && (
+                        {log.adaptationsUsed && log.adaptationsUsed.length > 0 && (
                           <div>
                             <span className="font-medium text-sm">Adaptations:</span>
                             <div className="flex flex-wrap gap-1 mt-1">
@@ -767,7 +768,7 @@ export function ActivityLogging({ students, selectedStudentId, onSelectStudent }
             <div className="text-center py-8">
               <Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">No activities logged yet</p>
-              <p className="text-sm text-muted-foreground">Click "Log Activity" to add your first entry</p>
+              <p className="text-sm text-muted-foreground">Click "Record an activity" to add your first entry</p>
             </div>
           )}
         </CardContent>

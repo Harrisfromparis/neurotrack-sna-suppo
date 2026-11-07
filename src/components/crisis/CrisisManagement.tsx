@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Shield, Plus, AlertTriangle, Phone, Clock, CheckCircle } from '@phosphor-icons/react'
+import { Shield, Plus, Warning, Phone, Clock, CheckCircle } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 
 interface CrisisManagementProps {
@@ -19,7 +19,7 @@ interface CrisisManagementProps {
 }
 
 export function CrisisManagement({ students, selectedStudentId, onSelectStudent }: CrisisManagementProps) {
-  const [crisisProtocols, setCrisisProtocols] = useKV<CrisisProtocol[]>('crisis-protocols', [])
+  const [crisisProtocols = [], setCrisisProtocols] = useKV<CrisisProtocol[]>('crisis-protocols', [])
   const [showAddProtocol, setShowAddProtocol] = useState(false)
   const [activeEmergency, setActiveEmergency] = useState<string | null>(null)
   const [newProtocol, setNewProtocol] = useState({
@@ -56,7 +56,7 @@ export function CrisisManagement({ students, selectedStudentId, onSelectStudent 
 
   const handleAddProtocol = () => {
     if (!newProtocol.studentId || !newProtocol.emergencyProcedure) {
-      toast.error('Please fill in required fields')
+      toast.error('Some required fields are still empty')
       return
     }
 
@@ -69,14 +69,15 @@ export function CrisisManagement({ students, selectedStudentId, onSelectStudent 
     }
 
     setCrisisProtocols(current => {
-      const existing = current.find(p => p.studentId === newProtocol.studentId)
+      const protocols = current ?? []
+      const existing = protocols.find(p => p.studentId === newProtocol.studentId)
       if (existing) {
-        return current.map(p => p.studentId === newProtocol.studentId ? protocol : p)
+        return protocols.map(p => p.studentId === newProtocol.studentId ? protocol : p)
       }
-      return [...current, protocol]
+      return [...protocols, protocol]
     })
 
-    toast.success('Crisis protocol saved successfully')
+    toast.success('Support plan saved')
     setShowAddProtocol(false)
     resetForm()
   }
@@ -134,12 +135,12 @@ export function CrisisManagement({ students, selectedStudentId, onSelectStudent 
 
   const activateEmergency = (studentId: string) => {
     setActiveEmergency(studentId)
-    toast.error('Emergency protocols activated!')
+    toast.success('Support plan opened')
   }
 
   const deactivateEmergency = () => {
     setActiveEmergency(null)
-    toast.success('Emergency situation resolved')
+    toast.success('Logged as resolved')
   }
 
   if (!selectedStudent) {
@@ -184,11 +185,11 @@ export function CrisisManagement({ students, selectedStudentId, onSelectStudent 
                       if (hasProtocol) {
                         activateEmergency(student.id)
                       } else {
-                        toast.error('No crisis protocol available for this student')
+                        toast.error('This student has no support plan yet')
                       }
                     }}
                   >
-                    <AlertTriangle className="h-4 w-4 mr-2" />
+                    <Warning className="h-4 w-4 mr-2" />
                     Emergency Alert
                   </Button>
                 </CardContent>
@@ -204,7 +205,7 @@ export function CrisisManagement({ students, selectedStudentId, onSelectStudent 
     <div className="space-y-6">
       {activeEmergency === selectedStudent.id && (
         <Alert className="border-destructive bg-destructive/10">
-          <AlertTriangle className="h-4 w-4" />
+          <Warning className="h-4 w-4" />
           <AlertTitle className="text-destructive">EMERGENCY ACTIVE</AlertTitle>
           <AlertDescription className="text-destructive">
             Crisis protocols are currently active for {selectedStudent.name}. Follow established procedures.
@@ -234,7 +235,7 @@ export function CrisisManagement({ students, selectedStudentId, onSelectStudent 
             onClick={() => activateEmergency(selectedStudent.id)}
             className="flex items-center gap-2"
           >
-            <AlertTriangle className="h-4 w-4" />
+            <Warning className="h-4 w-4" />
             EMERGENCY
           </Button>
           <Dialog open={showAddProtocol} onOpenChange={setShowAddProtocol}>
@@ -353,7 +354,7 @@ export function CrisisManagement({ students, selectedStudentId, onSelectStudent 
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Phone className="h-5 w-5" />
-              Emergency Contacts
+              Emergency contacts
             </CardTitle>
             <CardDescription>Quick access to important contacts</CardDescription>
           </CardHeader>
@@ -396,7 +397,7 @@ export function CrisisManagement({ students, selectedStudentId, onSelectStudent 
               className="w-full"
               onClick={() => activateEmergency(selectedStudent.id)}
             >
-              <AlertTriangle className="h-4 w-4 mr-2" />
+              <Warning className="h-4 w-4 mr-2" />
               Activate Emergency Protocol
             </Button>
             <Button variant="outline" className="w-full">
@@ -429,7 +430,7 @@ export function CrisisManagement({ students, selectedStudentId, onSelectStudent 
                 <div className="space-y-2">
                   {studentProtocol.triggerSigns.map((sign, index) => (
                     <div key={index} className="flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4 text-destructive" />
+                      <Warning className="h-4 w-4 text-destructive" />
                       <span>{sign}</span>
                     </div>
                   ))}
@@ -463,7 +464,7 @@ export function CrisisManagement({ students, selectedStudentId, onSelectStudent 
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
+              <Warning className="h-5 w-5 text-destructive" />
               No Crisis Protocol
             </CardTitle>
             <CardDescription>

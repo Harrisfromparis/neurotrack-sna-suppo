@@ -10,10 +10,11 @@ import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { MessageCircle, Plus, Send, Clock, AlertCircle, Eye, EyeSlash, Reply, Forward, Paperclip } from '@phosphor-icons/react'
+import { ChatCircle, Plus, PaperPlaneTilt, Clock, WarningCircle, Eye, EyeSlash, ArrowBendUpLeft, Paperclip } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { useLogging, useFormTracking } from '@/hooks/useLogging'
 import { getCurrentSessionId } from '@/lib/logging'
+import { classLabel } from '@/lib/schoolTerms'
 
 interface CommunicationHubProps {
   students: Student[]
@@ -22,7 +23,7 @@ interface CommunicationHubProps {
 }
 
 export function CommunicationHub({ students, selectedStudentId, onSelectStudent }: CommunicationHubProps) {
-  const [messages, setMessages] = useKV<Message[]>('messages', [])
+  const [messages = [], setMessages] = useKV<Message[]>('messages', [])
   const [showNewMessage, setShowNewMessage] = useState(false)
   const { logAction, logError } = useLogging()
   const { trackFormStart, trackFieldInteraction, trackFormSubmit, trackValidationError } = useFormTracking('message-form')
@@ -76,13 +77,13 @@ export function CommunicationHub({ students, selectedStudentId, onSelectStudent 
     
     // Validation
     if (!newMessage.to.length || !newMessage.subject || !newMessage.content) {
-      const missingFields = []
+      const missingFields: string[] = []
       if (!newMessage.to.length) missingFields.push('recipient')
       if (!newMessage.subject) missingFields.push('subject')
       if (!newMessage.content) missingFields.push('content')
       
       trackValidationError('required-fields', `Missing: ${missingFields.join(', ')}`)
-      toast.error('Please fill in all required fields')
+      toast.error('Some required fields are still empty')
       return
     }
 
@@ -130,7 +131,7 @@ export function CommunicationHub({ students, selectedStudentId, onSelectStudent 
         importance: newMessage.priority === 'urgent' ? 5 : newMessage.priority === 'high' ? 4 : 3
       }
 
-      setMessages(current => [...current, message])
+      setMessages(current => [...(current ?? []), message])
       
       // Log message creation
       logAction('message_sent', selectedStudentId || 'general', {
@@ -150,7 +151,7 @@ export function CommunicationHub({ students, selectedStudentId, onSelectStudent 
         hasStudentId: !!message.studentId
       }, true)
       
-      toast.success('Message sent successfully')
+      toast.success('Message sent')
       
       // Reset form
       setNewMessage({
@@ -170,15 +171,15 @@ export function CommunicationHub({ students, selectedStudentId, onSelectStudent 
     } catch (error) {
       logError('message_send', error?.toString() || 'Unknown error', selectedStudentId)
       trackFormSubmit({}, false)
-      toast.error('Failed to send message')
+      toast.error('Could not send that message')
     }
   }
 
   const markAsRead = async (messageId: string) => {
     const readTimestamp = new Date().toISOString()
     
-    setMessages(current => 
-      current.map(msg => 
+    setMessages(current =>
+      (current ?? []).map(msg => 
         msg.id === messageId 
           ? { 
               ...msg, 
@@ -194,7 +195,7 @@ export function CommunicationHub({ students, selectedStudentId, onSelectStudent 
       studentId: selectedStudentId
     })
     
-    toast.success('Message marked as read')
+    toast.success('Marked as read')
   }
 
   const getPriorityColor = (priority: string) => {
@@ -208,10 +209,10 @@ export function CommunicationHub({ students, selectedStudentId, onSelectStudent 
 
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'incident': return <AlertCircle className="h-4 w-4" />
+      case 'incident': return <WarningCircle className="h-4 w-4" />
       case 'progress': return <Clock className="h-4 w-4" />
-      case 'health': return <AlertCircle className="h-4 w-4" />
-      default: return <MessageCircle className="h-4 w-4" />
+      case 'health': return <WarningCircle className="h-4 w-4" />
+      default: return <ChatCircle className="h-4 w-4" />
     }
   }
 
@@ -252,16 +253,16 @@ export function CommunicationHub({ students, selectedStudentId, onSelectStudent 
             </DialogTrigger>
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Send New Message</DialogTitle>
+                <DialogTitle>Send a message</DialogTitle>
                 <DialogDescription>
                   Communicate with teachers, parents, or support staff with comprehensive tracking
                 </DialogDescription>
               </DialogHeader>
               
               <div className="space-y-6">
-                {/* Basic Information */}
+                {/* The basics */}
                 <div>
-                  <h3 className="text-lg font-semibold mb-3">Message Details</h3>
+                  <h3 className="text-lg font-semibold mb-3">Message details</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Student (Optional)</Label>
@@ -340,7 +341,7 @@ export function CommunicationHub({ students, selectedStudentId, onSelectStudent 
 
                 {/* Priority and Settings */}
                 <div>
-                  <h3 className="text-lg font-semibold mb-3">Priority & Settings</h3>
+                  <h3 className="text-lg font-semibold mb-3">Priority and settings</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Priority</Label>
@@ -467,7 +468,7 @@ export function CommunicationHub({ students, selectedStudentId, onSelectStudent 
                     Cancel
                   </Button>
                   <Button onClick={handleSendMessage} className="flex items-center gap-2">
-                    <Send className="h-4 w-4" />
+                    <PaperPlaneTilt className="h-4 w-4" />
                     Send Message
                   </Button>
                 </div>
@@ -496,7 +497,7 @@ export function CommunicationHub({ students, selectedStudentId, onSelectStudent 
                       <Badge variant="destructive">{unreadCount}</Badge>
                     )}
                   </CardTitle>
-                  <CardDescription>Age {student.age} • {student.grade}</CardDescription>
+                  <CardDescription>Age {student.age} • {classLabel(student.grade)}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="text-sm text-muted-foreground">
@@ -512,7 +513,7 @@ export function CommunicationHub({ students, selectedStudentId, onSelectStudent 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <MessageCircle className="h-5 w-5" />
+            <ChatCircle className="h-5 w-5" />
             {selectedStudent ? `Messages for ${selectedStudent.name}` : 'All Messages'}
           </CardTitle>
           <CardDescription>
@@ -545,7 +546,7 @@ export function CommunicationHub({ students, selectedStudentId, onSelectStudent 
                         )}
                         {message.requiresResponse && (
                           <Badge variant="secondary" className="flex items-center gap-1">
-                            <Reply className="h-3 w-3" />
+                            <ArrowBendUpLeft className="h-3 w-3" />
                             Response Required
                           </Badge>
                         )}
@@ -639,7 +640,7 @@ export function CommunicationHub({ students, selectedStudentId, onSelectStudent 
                             variant="secondary"
                             className="flex items-center gap-1"
                           >
-                            <Reply className="h-3 w-3" />
+                            <ArrowBendUpLeft className="h-3 w-3" />
                             Reply
                           </Button>
                         )}
@@ -657,7 +658,7 @@ export function CommunicationHub({ students, selectedStudentId, onSelectStudent 
             </div>
           ) : (
             <div className="text-center py-8">
-              <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <ChatCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">No messages found</p>
               <p className="text-sm text-muted-foreground">Click "New Message" to start communicating</p>
             </div>
